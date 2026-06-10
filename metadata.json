@@ -1,0 +1,6 @@
+{
+  "name": "DanVilla Hotel",
+  "description": "A professional full-stack hotel booking platform for DanVilla Hotel featuring real-time room availability processing, persistent reservation bookings, and a secure mock checkout payment gateway.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net - Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Primitive Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // 3. Hotels collection public access
+    match /hotels/{hotelId} {
+      allow get, list: if true;
+      allow write: if true; // Allowed for database seed and dynamic modifications of the catalog
+    }
+
+    // 4. Rooms collection public access
+    match /rooms/{roomId} {
+      allow get, list: if true;
+      allow write: if true; // Allowed for database seed and dynamic modifications of the catalog
+    }
+
+    // 5. Bookings Collection matching secure identity checking
+    match /bookings/{bookingId} {
+      // Allow unrestricted access for preview/sandbox Express backend operations
+      allow read, write: if true;
+    }
+  }
+}

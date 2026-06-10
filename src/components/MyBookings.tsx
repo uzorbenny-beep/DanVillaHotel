@@ -1,0 +1,269 @@
+import React, { useEffect, useState } from 'react';
+import { Calendar, Tag, UserCheck, AlertOctagon, Undo, Loader2, Sparkles, Building2 } from 'lucide-react';
+import { Booking, Room, Hotel } from '../types';
+import { cancelBooking } from '../lib/api';
+import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { motion, AnimatePresence } from 'motion/react';
+
+interface MyBookingsProps {
+  userId: string;
+  hotels: Hotel[];
+  onBack: () => void;
+}
+
+export const MyBookings: React.FC<MyBookingsProps> = ({ userId, hotels, onBack }) => {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // Sync bookings in real-time using Firestore Snapshot listeners
+  useEffect(() => {
+    setLoading(true);
+    const bookingsQuery = query(collection(db, 'bookings'), where('userId', '==', userId));
+    
+    const unsubscribe = onSnapshot(bookingsQuery, (snapshot) => {
+      const records: Booking[] = [];
+      snapshot.forEach(doc => {
+        records.push(doc.data() as Booking);
+      });
+      // Sort bookings chronologically: newest created first
+      records.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setBookings(records);
+      setLoading(false);
+    }, (error) => {
+      console.error("Failed to snapshot user bookings:", error);
+      setLoading(false);
+    });
+
+    // Populate all rooms dictionary to display room details in listings
+    const loadRoomsDict = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'rooms'));
+        const roomsList: Room[] = [];
+        snap.forEach(d => {
+          roomsList.push(d.data() as Room);
+        });
+        setRooms(roomsList);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadRoomsDict();
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  const handleCancel = async (bookingId: string) => {
+    if (!window.confirm("Are you certain you wish to cancel this hotel booking and release your reserved room slot back to the public pool?")) {
+      return;
+    }
+
+    setCancellingId(bookingId);
+    try {
+      await cancelBooking(bookingId, userId);
+      // Success triggers live state sync via onSnapshot listener automatically!
+    } catch (error: any) {
+      alert(error.message || "Failed to cancel your reservation. Please consult administration.");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="py-24 text-center">
+        <Loader2 className="w-8 h-8 text-amber-600 animate-spin mx-auto mb-4" />
+        <p className="text-xs text-gray-500 font-mono">Loading your secure travel itineraries...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8" id="my-bookings-board">
+      
+      {/* Search Header banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 border border-gray-150 rounded-2xl">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 font-sans tracking-tight">Your Reserved Itineraries</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Manage details and cancel reservations</p>
+        </div>
+        <button
+          onClick={onBack}
+          className="text-xs font-semibold py-2 px-4.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl transition-colors cursor-pointer self-start sm:self-auto"
+        >
+          &larr; Return to main wings overview
+        </button>
+      </div>
+
+      {bookings.length === 0 ? (
+        <div className="text-center bg-white border border-gray-150 p-12 sm:p-16 rounded-3xl max-w-xl mx-auto space-y-5">
+          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-400">
+            <Building2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-gray-800">No active bookings found</h4>
+            <p className="text-xs text-gray-500 mt-1.5 leading-relaxed max-w-sm mx-auto">
+              You currently hold no active lodging reservations. Return to the suite wings catalog and choose an available luxury suite.
+            </p>
+          </div>
+          <button
+            onClick={onBack}
+            className="py-2 px-5 bg-amber-800 text-white rounded-lg text-xs font-medium hover:bg-amber-900 transition-colors cursor-pointer"
+          >
+            Browse premium wings
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-8">
+          {bookings.map((booking) => {
+            const hotel = hotels.find((h) => h.id === booking.hotelId);
+            const rType = rooms.find((r) => r.id === booking.roomId);
+
+            return (
+              <motion.div
+                key={booking.id}
+                layoutId={`booking-card-${booking.id}`}
+                className="bg-white border border-gray-150 rounded-2xl overflow-hidden flex flex-col md:flex-row"
+              >
+                {/* Left side: Voucher voucher representation with a clean barcode */}
+                <div className="p-6 md:p-8 flex flex-col justify-between border-b md:border-b-0 md:border-r border-dashed border-gray-200 w-full md:w-80 shrink-0 bg-gray-50/50">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-mono text-gray-400 tracking-widest uppercase">Travel Voucher</span>
+                      
+                      {/* Status indicator pill */}
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase ${
+                        booking.status === 'cancelled'
+                          ? 'bg-red-50 text-red-600 border border-red-100'
+                          : booking.paymentStatus === 'paid'
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                          : 'bg-amber-50 text-amber-600 border border-amber-150'
+                      }`}>
+                        {booking.status === 'cancelled'
+                          ? 'Cancelled & Void'
+                          : booking.paymentStatus === 'paid'
+                          ? 'Confirmed Receipt'
+                          : 'Pending Payment'
+                        }
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <h4 className="text-[11px] text-gray-400 font-bold uppercase tracking-wider block">Reservation Token</h4>
+                      <span className="text-xs font-mono font-medium text-gray-700 block select-all">{booking.id}</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <h4 className="text-[11px] text-gray-400 font-bold uppercase tracking-wider block">Checked Guest</h4>
+                      <span className="text-xs font-semibold text-gray-800 block truncate">{booking.guestName}</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <h4 className="text-[11px] text-gray-400 font-bold uppercase tracking-wider block">Total Charge Settle</h4>
+                      <span className="text-sm font-bold text-amber-800 block">${booking.totalPrice}</span>
+                    </div>
+                  </div>
+
+                  {/* HTML/CSS Barcode */}
+                  <div className="pt-6">
+                    <div className="h-10 flex items-center gap-[1px] justify-center bg-white border border-gray-200 p-1.5 rounded-sm">
+                      {[2, 1, 3, 1, 4, 1, 2, 3, 1, 2, 4, 1, 3, 2, 1, 2, 4, 1, 2, 1].map((w, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-gray-800 h-full"
+                          style={{ width: `${w}px` }}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-center font-mono text-gray-400 tracking-[0.2em] block mt-1.5 uppercase">
+                      * {booking.id.toUpperCase()} *
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right side: Detailed Travel Details */}
+                <div className="p-6 md:p-8 flex-grow flex flex-col justify-between space-y-6">
+                  <div>
+                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest block font-sans">
+                      {hotel ? hotel.name : 'Premium Hotel Resort'}
+                    </span>
+                    <h3 className="text-lg font-bold text-gray-900 mt-1 leading-tight">
+                      {rType ? rType.name : 'Loading Room Details...'}
+                    </h3>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 mt-6 border-y border-gray-100 py-5">
+                      <div className="space-y-1.5 flex items-start gap-2.5">
+                        <Calendar className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="text-[10px] text-gray-400 font-bold tracking-wider uppercase block">Dates Bound</span>
+                          <span className="text-xs text-gray-700 font-medium block">
+                            {booking.checkIn} &rarr; {booking.checkOut}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 flex items-start gap-2.5">
+                        <Tag className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="text-[10px] text-gray-400 font-bold tracking-wider uppercase block">Lodging Units</span>
+                          <span className="text-xs text-gray-700 font-medium block">
+                            {booking.roomCount} {booking.roomCount === 1 ? 'Suite' : 'Suites'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 flex items-start gap-2.5">
+                        <UserCheck className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="text-[10px] text-gray-400 font-bold tracking-wider uppercase block">Guest Liaison</span>
+                          <span className="text-xs text-gray-700 font-medium block truncate max-w-[150px]">
+                            {booking.guestEmail}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <p className="text-[10.5px] text-gray-400 font-mono flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      Created at {new Date(booking.createdAt).toLocaleString()}
+                    </p>
+
+                    {booking.status !== 'cancelled' ? (
+                      <button
+                        disabled={cancellingId === booking.id}
+                        onClick={() => handleCancel(booking.id)}
+                        className="inline-flex items-center gap-2 py-2 px-4.5 border border-red-200/50 text-red-700 hover:bg-red-50 text-xs font-semibold rounded-xl transition-all cursor-pointer select-none self-end sm:self-auto focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                      >
+                        {cancellingId === booking.id ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Releasing inventory...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Undo className="w-3.5 h-3.5" />
+                            <span>Cancel reservation</span>
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <div className="text-xs font-mono font-medium text-red-600 bg-red-50 border border-red-100 py-1.5 px-3 rounded-lg flex items-center gap-1.5 select-none uppercase self-end sm:self-auto">
+                        <AlertOctagon className="w-4 h-4" />
+                        <span>Inventory reference voided</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};

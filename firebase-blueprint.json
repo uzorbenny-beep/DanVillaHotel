@@ -1,0 +1,86 @@
+{
+  "entities": {
+    "Hotel": {
+      "title": "Hotel",
+      "description": "Details of the hotel property",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "location": { "type": "string" },
+        "rating": { "type": "number" },
+        "image": { "type": "string" },
+        "amenities": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["id", "name", "location", "rating"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "Room type categorization under a hotel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "pricePerNight": { "type": "number" },
+        "capacity": { "type": "number" },
+        "totalInventory": { "type": "number" },
+        "image": { "type": "string" },
+        "amenities": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["id", "hotelId", "name", "pricePerNight", "capacity", "totalInventory"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Reservation and payment transactions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "roomId": { "type": "string" },
+        "checkIn": { "type": "string" },
+        "checkOut": { "type": "string" },
+        "roomCount": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "cancelled"]
+        },
+        "paymentStatus": {
+          "type": "string",
+          "enum": ["pending", "paid", "failed"]
+        },
+        "paymentIntentId": { "type": "string" },
+        "guestName": { "type": "string" },
+        "guestEmail": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "hotelId", "roomId", "checkIn", "checkOut", "roomCount", "totalPrice", "status", "paymentStatus"]
+    }
+  },
+  "firestore": {
+    "/hotels/{hotelId}": {
+      "schema": "Hotel",
+      "description": "A collection of hotel properties"
+    },
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "A collection of hotel room configurations"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "A collection of user reservations and statuses"
+    }
+  }
+}
