@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   fetchHotels, 
   fetchRooms,
-  updateSettings
+  updateSettings,
+  updateHotel,
+  createRoom,
+  updateRoom,
+  deleteRoom
 } from '../lib/api';
 import { Hotel, Room, Booking, SystemSettings } from '../types';
 import { 
@@ -359,13 +363,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, settings, onUpda
   const handleSaveHotel = async (hotel: Hotel) => {
     setActionLoading(hotel.id);
     try {
-      const docRef = doc(db, 'hotels', hotel.id);
-      await setDoc(docRef, hotel);
-      showFeedback('success', `Section: "${hotel.name}" saved successfully in Firestore!`);
+      await updateHotel(hotel);
+      showFeedback('success', `Section: "${hotel.name}" saved successfully via API!`);
       setEditingHotel(null);
       await loadAllData();
-    } catch (err) {
-      showFeedback('error', 'Insufficient database permissions or server error.');
+    } catch (err: any) {
+      console.error("Hotel section update failed:", err);
+      showFeedback('error', `Insufficient database permissions or server error: ${err.message || err}`);
     } finally {
       setActionLoading(null);
     }
@@ -393,13 +397,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, settings, onUpda
   const handleSaveRoom = async (room: Room) => {
     setActionLoading(room.id || 'saving-room');
     try {
-      const targetRoomId = isCreatingRoom 
-        ? `r_custom_${Math.random().toString(36).substring(2, 11)}`
-        : room.id;
-
       const finalRoom: Room = {
         ...room,
-        id: targetRoomId,
         pricePerNight: Number(room.pricePerNight) || 0,
         capacity: Number(room.capacity) || 1,
         totalInventory: Number(room.totalInventory) || 1,
@@ -407,15 +406,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, settings, onUpda
         amenities: room.amenities || []
       };
 
-      const docRef = doc(db, 'rooms', targetRoomId);
-      await setDoc(docRef, finalRoom).catch((err) => {
-        handleFirestoreError(err, OperationType.WRITE, `rooms/${targetRoomId}`);
-      });
-
       if (isCreatingRoom) {
-        showFeedback('success', `Suite / Offering: "${room.name}" created successfully in Firestore!`);
+        await createRoom(selectedHotelId, {
+          hotelId: selectedHotelId,
+          name: finalRoom.name,
+          description: finalRoom.description,
+          pricePerNight: finalRoom.pricePerNight,
+          capacity: finalRoom.capacity,
+          totalInventory: finalRoom.totalInventory,
+          image: finalRoom.image || '',
+          images: finalRoom.images,
+          amenities: finalRoom.amenities
+        });
+        showFeedback('success', `Suite / Offering: "${room.name}" created successfully via API!`);
       } else {
-        showFeedback('success', `Suite / Offering: "${room.name}" updated successfully in Firestore!`);
+        await updateRoom(finalRoom);
+        showFeedback('success', `Suite / Offering: "${room.name}" updated successfully via API!`);
       }
 
       setEditingRoom(null);
@@ -437,11 +443,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, settings, onUpda
 
     setActionLoading(`delete-${roomId}`);
     try {
-      const docRef = doc(db, 'rooms', roomId);
-      await deleteDoc(docRef).catch((err) => {
-        handleFirestoreError(err, OperationType.DELETE, `rooms/${roomId}`);
-      });
-      showFeedback('success', 'Room slot successfully deleted from database.');
+      await deleteRoom(roomId);
+      showFeedback('success', 'Room slot successfully deleted from database via API.');
       await loadAllData();
     } catch (err: any) {
       console.error("Room deletion failed: ", err);

@@ -120,3 +120,61 @@ export async function updateSettings(settings: SystemSettings): Promise<void> {
     throw new Error(err.error || 'Failed to save system settings modifications.');
   }
 }
+
+export async function updateHotel(hotel: Hotel): Promise<Hotel> {
+  const response = await fetch(`/api/hotels/${hotel.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(hotel)
+  });
+  if (!response.ok) {
+    const textAndErr = await response.text().catch(() => '');
+    let errObj;
+    try { errObj = JSON.parse(textAndErr); } catch(e) {}
+    throw new Error(errObj?.error || textAndErr || 'Failed to update hotel wing section.');
+  }
+  return response.json();
+}
+
+export async function createRoom(hotelId: string, room: Omit<Room, 'id'>): Promise<Room> {
+  const response = await fetch(`/api/hotels/${hotelId}/rooms`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(room)
+  });
+  if (!response.ok) {
+    const textAndErr = await response.text().catch(() => '');
+    let errObj;
+    try { errObj = JSON.parse(textAndErr); } catch(e) {}
+    throw new Error(errObj?.error || textAndErr || 'Failed to create new lodging suite offering.');
+  }
+  return response.json();
+}
+
+export async function updateRoom(room: Room): Promise<Room> {
+  const response = await fetch(`/api/rooms/${room.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(room)
+  });
+  if (!response.ok) {
+    const textAndErr = await response.text().catch(() => '');
+    let errObj;
+    try { errObj = JSON.parse(textAndErr); } catch(e) {}
+    throw new Error(errObj?.error || textAndErr || 'Failed to update lodging suite offering.');
+  }
+  return response.json();
+}
+
+export async function deleteRoom(roomId: string): Promise<void> {
+  const response = await fetch(`/api/rooms/${roomId}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (!response.ok) {
+    const textAndErr = await response.text().catch(() => '');
+    let errObj;
+    try { errObj = JSON.parse(textAndErr); } catch(e) {}
+    throw new Error(errObj?.error || textAndErr || 'Failed to delete lodging suite offering.');
+  }
+}
