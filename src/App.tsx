@@ -6,6 +6,7 @@ import { PaymentForm } from './components/PaymentForm';
 import { MyBookings } from './components/MyBookings';
 import { AdminPanel } from './components/AdminPanel';
 import { AuthBarrierMock } from './components/AuthBarrierMock';
+import { PropertyMapModal } from './components/PropertyMapModal';
 import { fetchHotels, createBooking } from './lib/api';
 import { Hotel, Room, Booking } from './types';
 import { Globe, PlaneTakeoff, ShieldAlert, Sparkles, LogOut, Loader2, Sparkle, Search, CheckCircle } from 'lucide-react';
@@ -27,6 +28,7 @@ function BookingAppContent() {
   const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+  const [activeMapHotel, setActiveMapHotel] = useState<Hotel | null>(null);
 
   // Buffer state passed to checkout pipeline
   const [stayMeta, setStayMeta] = useState<{
@@ -152,7 +154,7 @@ function BookingAppContent() {
     <div className="min-h-screen flex flex-col bg-[#F9F8F6] text-[#33332D]">
       
       {/* Dynamic top ticker info of sandbox modes */}
-      <div className="bg-[#5B6D5B] text-[#F9F8F6] py-3 px-6 text-[11px] text-center font-serif uppercase tracking-widest font-medium">
+      <div className="bg-black border-b-2 border-red-600 text-white py-3 px-6 text-[10px] text-center font-sans font-black uppercase tracking-[0.25em]">
         Extended summer stays currently receive up to 10% in complimentary resort credits. Explore luxury suites.
       </div>
 
@@ -160,14 +162,14 @@ function BookingAppContent() {
       <header className="sticky top-0 z-40 bg-[#F9F8F6]/95 backdrop-blur-md border-b border-[#E5E2DA] shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 min-h-[5rem] py-3 md:py-0 flex flex-col md:flex-row items-center justify-between gap-4">
           <div onClick={handleResetCatalog} className="flex items-center gap-3 cursor-pointer group">
-            <div className="w-8 h-8 bg-[#5B6D5B] rounded-full flex items-center justify-center text-[#F9F8F6] font-serif italic text-sm transition-all group-hover:scale-105">
+            <div className="w-9 h-9 bg-[#1E3A8A] border-2 border-red-600 rounded-full flex items-center justify-center text-white font-serif font-black italic text-base transition-all group-hover:scale-110 group-hover:rotate-6">
               D
             </div>
             <div>
-              <span className="font-serif italic font-bold text-xl tracking-tight text-[#33332D] block">
+              <span className="font-serif italic font-bold text-xl tracking-tight text-black block">
                 danvilla
               </span>
-              <span className="text-[9px] font-sans font-medium text-[#8E8E82] tracking-widest uppercase block leading-none">
+              <span className="text-[9px] font-sans font-black text-red-600 tracking-[0.2em] block leading-none">
                 HOTEL & RESORTS
               </span>
             </div>
@@ -176,8 +178,8 @@ function BookingAppContent() {
           <nav className="flex items-center gap-4 sm:gap-8 text-[11px] sm:text-xs font-semibold uppercase tracking-widest">
             <button
               onClick={handleResetCatalog}
-              className={`hover:text-[#5B6D5B] transition-colors cursor-pointer ${
-                currentView === 'hotels' ? 'text-[#33332D] underline underline-offset-4' : 'text-[#8E8E82]'
+              className={`hover:text-red-600 transition-colors cursor-pointer ${
+                currentView === 'hotels' ? 'text-black font-extrabold border-b-2 border-red-600' : 'text-[#8E8E82]'
               }`}
             >
               Wings & Towers
@@ -185,8 +187,8 @@ function BookingAppContent() {
             {user && (
               <button
                 onClick={() => setCurrentView('bookings')}
-                className={`inline-flex items-center gap-1.5 hover:text-[#5B6D5B] transition-colors cursor-pointer ${
-                  currentView === 'bookings' ? 'text-[#33332D] underline underline-offset-4' : 'text-[#8E8E82]'
+                className={`inline-flex items-center gap-1.5 hover:text-red-600 transition-colors cursor-pointer ${
+                  currentView === 'bookings' ? 'text-black font-extrabold border-b-2 border-red-600' : 'text-[#8E8E82]'
                 }`}
               >
                 <span>My Itineraries</span>
@@ -194,8 +196,8 @@ function BookingAppContent() {
             )}
             <button
               onClick={() => setCurrentView('admin')}
-              className={`inline-flex items-center gap-1.5 hover:text-[#5B6D5B] transition-colors cursor-pointer ${
-                currentView === 'admin' ? 'text-[#33332D] underline underline-offset-4' : 'text-[#8E8E82]'
+              className={`inline-flex items-center gap-1.5 hover:text-red-600 transition-colors cursor-pointer ${
+                currentView === 'admin' ? 'text-black font-extrabold border-b-2 border-red-600' : 'text-[#8E8E82]'
               }`}
             >
               <span>Admin Portal</span>
@@ -237,11 +239,11 @@ function BookingAppContent() {
         
         {/* Global actions loaders / confirmations */}
         {creatingReserve && (
-          <div className="fixed inset-0 z-50 bg-[#33332D]/40 backdrop-blur-xs flex flex-col items-center justify-center">
-            <div className="bg-[#F9F8F6] px-8 py-7 rounded-3xl border border-[#E5E2DA] shadow-xl text-center space-y-4 max-w-sm">
-              <Loader2 className="w-9 h-9 text-[#5B6D5B] animate-spin mx-auto" />
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center">
+            <div className="bg-white px-8 py-7 rounded-3xl border-2 border-blue-900/15 shadow-xl text-center space-y-4 max-w-sm">
+              <Loader2 className="w-9 h-9 text-[#1E3A8A] animate-spin mx-auto animate-pulse" />
               <div>
-                <h4 className="font-serif font-bold text-[#33332D] text-sm">Securing Inventory Slot...</h4>
+                <h4 className="font-serif font-bold text-black text-sm">Securing Inventory Slot...</h4>
                 <p className="text-xs text-[#8E8E82] mt-1.5 leading-relaxed font-sans">
                   Locking selected room allocations and building travel dossiers securely on server nodes. Please wait while checking availability.
                 </p>
@@ -287,9 +289,9 @@ function BookingAppContent() {
               className="space-y-10"
             >
               {/* Grand Banner welcome message */}
-              <div className="relative rounded-3xl overflow-hidden bg-[#5B6D5B] text-white min-h-[340px] flex items-center px-8 md:px-16" id="welcome-banner-hero">
+              <div className="relative rounded-3xl overflow-hidden bg-[#1E3A8A] text-white min-h-[340px] flex items-center px-8 md:px-16 border-b-4 border-red-600 shadow-xl" id="welcome-banner-hero">
                 {/* Background asset */}
-                <div className="absolute inset-0 z-0 opacity-25 mix-blend-multiply">
+                <div className="absolute inset-0 z-0 opacity-30 mix-blend-multiply bg-black">
                   <img
                     src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=1200"
                     alt="Luxury hospitality preview"
@@ -299,17 +301,17 @@ function BookingAppContent() {
                 </div>
 
                 <div className="relative z-10 max-w-2xl space-y-6">
-                  <div className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-[#F9F8F6]/10 backdrop-blur-xs rounded-full border border-white/20 text-xs text-[#E8F0E8] font-semibold">
-                    <Sparkle className="w-3.5 h-3.5 fill-current text-[#E8F0E8]" />
-                    <span className="font-serif italic tracking-wide">Real-Time Availability Checked Live</span>
+                  <div className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-black/40 backdrop-blur-xs rounded-full border border-red-500/30 text-xs text-red-400 font-extrabold tracking-wider uppercase">
+                    <Sparkle className="w-3.5 h-3.5 fill-current" />
+                    <span>Real-Time Availability Checked Live</span>
                   </div>
                   
-                  <div className="space-y-2">
-                    <h1 className="text-3xl md:text-5xl font-serif italic tracking-tight leading-tight md:leading-none text-[#F9F8F6]">
-                      Bespoke luxury <br /><span className="font-sans font-bold not-italic tracking-normal text-white">at DanVilla Hotel</span>
+                  <div className="space-y-4">
+                    <h1 className="text-3xl md:text-5xl font-serif italic tracking-tight leading-tight md:leading-none text-white">
+                      Bespoke luxury <br /><span className="font-sans font-black not-italic tracking-normal text-white uppercase block mt-1 text-2xl md:text-4xl bg-gradient-to-r from-red-500 via-white to-blue-500 bg-clip-text text-transparent">at DanVilla Hotel</span>
                     </h1>
-                    <p className="text-[#E5E2DA] text-xs md:text-sm font-light max-w-md leading-relaxed">
-                      Experience five-star hospitality, real-time slot bookings, and guaranteed suite locks. Explore our signature luxury wings, garden terraces, and executive corporate layouts below.
+                    <p className="text-gray-100 text-xs md:text-sm font-light max-w-xl leading-relaxed">
+                      Experience premium five-star hospitality, real-time slot bookings, and guaranteed suite locks. Explore our signature luxury wings, garden terraces, and executive corporate layouts below.
                     </p>
                   </div>
                 </div>
@@ -324,7 +326,7 @@ function BookingAppContent() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search wings, towers, suites, or amenities..."
-                    className="w-full pl-10 pr-4 py-2.5 border border-[#E5E2DA] rounded-xl text-xs text-[#33332D] bg-[#F9F8F6] focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B] focus:border-[#5B6D5B] font-medium placeholder-[#8E8E82]"
+                    className="w-full pl-10 pr-4 py-2.5 border border-[#E5E2DA] rounded-xl text-xs text-black bg-white focus:outline-hidden focus:ring-1 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] font-medium placeholder-[#8E8E82]"
                   />
                 </div>
 
@@ -341,10 +343,10 @@ function BookingAppContent() {
                       <button
                         key={val}
                         onClick={() => setSelectedLocation(val)}
-                        className={`py-1.5 px-3 md:py-1.5 md:px-4 rounded-full text-[10px] md:text-xs font-semibold cursor-pointer transition-all ${
+                        className={`py-1.5 px-3 md:py-1.5 md:px-4 rounded-full text-[10px] md:text-xs font-bold cursor-pointer transition-all ${
                           selectedLocation === val
-                            ? 'bg-[#5B6D5B] text-white shadow-xs font-bold'
-                            : 'text-[#8E8E82] hover:text-[#33332D]'
+                            ? 'bg-black text-white border-b-2 border-red-600 shadow-md'
+                            : 'text-[#8E8E82] hover:text-black'
                         }`}
                       >
                         {label}
@@ -357,7 +359,7 @@ function BookingAppContent() {
               {/* Hotels display list */}
               {loadingHotels ? (
                 <div className="py-24 text-center">
-                  <Loader2 className="w-9 h-9 text-[#5B6D5B] animate-spin mx-auto mb-4" />
+                  <Loader2 className="w-9 h-9 text-[#1E3A8A] animate-spin mx-auto mb-4" />
                   <p className="text-xs text-[#8E8E82] font-mono">Synchronizing database assets...</p>
                 </div>
               ) : filteredHotels.length === 0 ? (
@@ -365,7 +367,11 @@ function BookingAppContent() {
                   <p className="text-xs text-[#8E8E82] font-mono">No matching locations found for "{searchQuery}". Try editing filters.</p>
                 </div>
               ) : (
-                <HotelGrid hotels={filteredHotels} onSelectHotel={handleSelectHotel} />
+                <HotelGrid 
+                  hotels={filteredHotels} 
+                  onSelectHotel={handleSelectHotel} 
+                  onOpenMap={(hotel) => setActiveMapHotel(hotel)}
+                />
               )}
             </motion.div>
           )}
@@ -433,15 +439,15 @@ function BookingAppContent() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
             >
-              <div className="w-14 h-14 bg-[#E8F0E8] rounded-full flex items-center justify-center text-[#5B6D5B] mx-auto border border-[#5B6D5B]/20 shadow-2xs">
-                <CheckCircle className="w-7 h-7" />
+              <div className="w-15 h-15 bg-blue-50 rounded-full flex items-center justify-center text-red-600 mx-auto border border-red-200 shadow-md">
+                <CheckCircle className="w-8 h-8" />
               </div>
               
               <div>
-                <span className="text-[11px] font-mono font-bold tracking-widest text-[#5B6D5B] block uppercase">
+                <span className="text-[11px] font-mono font-bold tracking-widest text-[#1E3A8A] block uppercase">
                   Transaction Approved
                 </span>
-                <h2 className="text-2xl font-serif italic text-[#33332D] font-bold tracking-tight mt-1">
+                <h2 className="text-2xl font-serif italic text-black font-extrabold tracking-tight mt-1">
                   Lodging secured!
                 </h2>
                 <p className="text-xs text-[#8E8E82] mt-2 leading-relaxed">
@@ -465,7 +471,7 @@ function BookingAppContent() {
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-[#8E8E82]">Secure Charge Amount</span>
-                  <span className="font-bold text-[#5B6D5B] font-serif text-sm">${activeBooking.totalPrice}</span>
+                  <span className="font-bold text-red-600 font-serif text-sm">${activeBooking.totalPrice}</span>
                 </div>
               </div>
 
@@ -478,7 +484,7 @@ function BookingAppContent() {
                 </button>
                 <button
                   onClick={() => setCurrentView('bookings')}
-                  className="flex-1 py-3 px-4 bg-[#5B6D5B] hover:bg-[#4a584a] text-white rounded-full text-xs font-bold uppercase tracking-widest cursor-pointer transition-colors shadow-xs"
+                  className="flex-1 py-3 px-4 bg-black hover:bg-neutral-800 border-b-2 border-red-600 text-white rounded-full text-xs font-bold uppercase tracking-widest cursor-pointer transition-colors shadow-xs"
                 >
                   Access Travel Vouchers
                 </button>
@@ -492,7 +498,7 @@ function BookingAppContent() {
       {/* Elegant high-contrast site footer */}
       <footer className="bg-white border-t border-[#E5E2DA] py-12 text-center text-xs text-[#8E8E82] mt-24">
         <div className="max-w-7xl mx-auto px-6 space-y-3">
-          <p className="font-serif italic font-medium tracking-wide text-[#33332D]">
+          <p className="font-serif italic font-bold tracking-wide text-black uppercase text-[10px] tracking-widest leading-none border-b border-red-600 inline-block pb-1 mb-2">
             DanVilla Hotel &copy; 2026. Custom built database-synchronized catalog.
           </p>
           <p className="text-[10px] text-[#8E8E82] leading-normal max-w-lg mx-auto">
@@ -501,6 +507,12 @@ function BookingAppContent() {
         </div>
       </footer>
 
+      {activeMapHotel && (
+        <PropertyMapModal
+          hotel={activeMapHotel}
+          onClose={() => setActiveMapHotel(null)}
+        />
+      )}
     </div>
   );
 }
@@ -508,7 +520,7 @@ function BookingAppContent() {
 // Logo SVG
 function PlatformLogo() {
   return (
-    <svg className="w-5 h-5 text-[#5B6D5B] fill-current" viewBox="0 0 24 24">
+    <svg className="w-5 h-5 text-[#1E3A8A] fill-current" viewBox="0 0 24 24">
       <path d="M12 2L2 22h20L12 2zm0 3.99L18.47 19H5.53L12 5.99z" />
     </svg>
   );

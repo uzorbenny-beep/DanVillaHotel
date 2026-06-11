@@ -282,7 +282,7 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
         <div>
           <button
             onClick={onBack}
-            className="text-xs text-[#5B6D5B] hover:text-[#4a584a] font-bold uppercase tracking-widest inline-flex items-center gap-1.5 cursor-pointer mb-2 transition-colors"
+            className="text-xs text-[#1E3A8A] hover:text-red-600 font-extrabold uppercase tracking-widest inline-flex items-center gap-1.5 cursor-pointer mb-2 transition-colors animate-pulse"
           >
             &larr; Back to Wings & Towers
           </button>
@@ -293,10 +293,10 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
         </div>
         
         {/* Verification indicator */}
-        <div className="flex items-center gap-3 bg-[#E8F0E8] border border-[#5B6D5B]/20 px-4 py-2.5 rounded-full text-[#5B6D5B]">
-          <Zap className="w-4 h-4 text-[#5B6D5B] shrink-0 fill-[#5B6D5B]/10" />
+        <div className="flex items-center gap-3 bg-blue-50 border border-[#1E3A8A]/20 px-4 py-2.5 rounded-full text-[#1E3A8A] shadow-2xs">
+          <Zap className="w-4 h-4 text-[#1E3A8A] shrink-0 fill-[#1E3A8A]/10" />
           <div className="text-[11px] font-sans">
-            <span className="font-bold block tracking-widest uppercase text-[#5B6D5B]">Live Room Vacancies</span>
+            <span className="font-bold block tracking-widest uppercase text-[#1E3A8A]">Live Room Vacancies</span>
             <span className="text-[#8E8E82] text-[10px]">Real-time live availability</span>
           </div>
         </div>
@@ -313,7 +313,7 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
               value={checkIn}
               min={new Date().toISOString().split('T')[0]}
               onChange={(e) => handleDateChange('checkIn', e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-[#E5E2DA] bg-white rounded-lg text-xs text-[#33332D] focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B] focus:border-[#5B6D5B] font-medium"
+              className="w-full pl-9 pr-3 py-2 border border-[#E5E2DA] bg-white rounded-lg text-xs text-[#33332D] focus:outline-hidden focus:ring-1 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] font-medium"
             />
           </div>
         </div>
@@ -327,7 +327,7 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
               value={checkOut}
               min={checkIn}
               onChange={(e) => handleDateChange('checkOut', e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-[#E5E2DA] bg-white rounded-lg text-xs text-[#33332D] focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B] focus:border-[#5B6D5B] font-medium"
+              className="w-full pl-9 pr-3 py-2 border border-[#E5E2DA] bg-white rounded-lg text-xs text-[#33332D] focus:outline-hidden focus:ring-1 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] font-medium"
             />
           </div>
         </div>
@@ -339,7 +339,7 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
             <select
               value={roomCount}
               onChange={(e) => setRoomCount(Number(e.target.value))}
-              className="w-full pl-9 pr-3 py-2 border border-[#E5E2DA] bg-white rounded-lg text-xs text-[#33332D] appearance-none focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B] focus:border-[#5B6D5B] font-medium"
+              className="w-full pl-9 pr-3 py-2 border border-[#E5E2DA] bg-white rounded-lg text-xs text-[#33332D] appearance-none focus:outline-hidden focus:ring-1 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] font-medium"
             >
               {[1, 2, 3, 4, 5].map(n => (
                 <option key={n} value={n}>{n} {n === 1 ? 'Room' : 'Rooms'}</option>
@@ -355,7 +355,7 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
             <select
               value={guests}
               onChange={(e) => setGuests(Number(e.target.value))}
-              className="w-full pl-9 pr-3 py-2 border border-[#E5E2DA] bg-white rounded-lg text-xs text-[#33332D] appearance-none focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B] focus:border-[#5B6D5B] font-medium"
+              className="w-full pl-9 pr-3 py-2 border border-[#E5E2DA] bg-white rounded-lg text-xs text-[#33332D] appearance-none focus:outline-hidden focus:ring-1 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] font-medium"
             >
               {[1, 2, 3, 4, 6].map(n => (
                 <option key={n} value={n}>{n} {n === 1 ? 'Guest' : 'Guests'}</option>
@@ -376,7 +376,7 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
       {/* Loading Room designs state */}
       {loadingRooms ? (
         <div className="py-20 flex flex-col items-center justify-center gap-3">
-          <Loader2 className="w-8 h-8 text-[#5B6D5B] animate-spin" />
+          <Loader2 className="w-8 h-8 text-[#1E3A8A] animate-spin" />
           <p className="text-xs text-[#8E8E82] font-mono">Querying available hotel rooms...</p>
         </div>
       ) : (
@@ -386,8 +386,8 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
               Selected Suite Offerings ({rooms.length})
             </h3>
             {checkingAvailability && (
-              <span className="text-[10px] font-mono text-[#5B6D5B] flex items-center gap-1.5 animate-pulse">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#5B6D5B]" /> Synchronizing live capacity...
+              <span className="text-[10px] font-mono text-[#1E3A8A] flex items-center gap-1.5 animate-pulse">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#1E3A8A]" /> Synchronizing live capacity...
               </span>
             )}
           </div>
@@ -438,9 +438,9 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
                     )}
                     
                     {/* Hover state overlay showing view icon */}
-                    <div className="absolute inset-0 bg-[#33332D]/45 opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10">
-                      <div className="px-4 py-2 bg-[#F9F8F6]/95 border border-[#E5E2DA] rounded-full text-[10px] font-bold tracking-widest text-[#33332D] uppercase flex items-center gap-1.5 shadow-md transform translate-y-2 group-hover/img:translate-y-0 transition-transform duration-300">
-                        <Maximize2 className="w-3.5 h-3.5 text-[#5B6D5B]" />
+                    <div className="absolute inset-0 bg-neutral-900/60 opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10">
+                      <div className="px-4 py-2 bg-white border border-neutral-200 rounded-full text-[10px] font-bold tracking-widest text-[#33332D] uppercase flex items-center gap-1.5 shadow-md transform translate-y-2 group-hover/img:translate-y-0 transition-transform duration-300">
+                        <Maximize2 className="w-3.5 h-3.5 text-[#1E3A8A]" />
                         <span>View Gallery</span>
                       </div>
                     </div>
@@ -452,8 +452,8 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
                         </span>
                       </div>
                     ) : inventoryShort ? (
-                      <div className="absolute inset-0 bg-[#5B6D5B]/30 backdrop-blur-xs flex items-center justify-center z-20 font-sans">
-                        <span className="px-4 py-2 bg-[#5B6D5B] text-white rounded-full text-[10px] font-bold tracking-widest uppercase">
+                      <div className="absolute inset-0 bg-red-600/25 backdrop-blur-xs flex items-center justify-center z-20 font-sans">
+                        <span className="px-4 py-2 bg-red-600 border border-red-500 text-white rounded-full text-[10px] font-bold tracking-widest uppercase shadow-md">
                           Only {availableCount} left
                         </span>
                       </div>
@@ -481,7 +481,7 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
                           </span>
                           {!isFullyBooked && (
                             <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
-                              availableCount <= 2 ? 'bg-red-50 text-red-600' : 'bg-[#E8F0E8] text-[#5B6D5B]'
+                              availableCount <= 2 ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-[#1E3A8A]'
                             }`}>
                               {availableCount} of {room.totalInventory} vacant
                             </span>
@@ -525,7 +525,7 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
                         {stayLength > 0 && !isFullyBooked && !inventoryShort && (
                           <div className="text-right sm:hidden">
                             <span className="text-[9px] text-[#8E8E82] uppercase tracking-widest block font-bold leading-none mb-0.5">Total Stay</span>
-                            <span className="text-sm font-bold font-serif italic text-[#5B6D5B]">${calculatedTotalPrice}</span>
+                            <span className="text-sm font-bold font-serif italic text-red-600">${calculatedTotalPrice}</span>
                           </div>
                         )}
                       </div>
@@ -533,8 +533,8 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
                       <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
                         {stayLength > 0 && !isFullyBooked && !inventoryShort && (
                           <div className="text-right hidden sm:block">
-                            <span className="text-[9px] text-[#8E8E82] uppercase tracking-widest block font-bold">Total Stay</span>
-                            <span className="text-base font-bold font-serif italic text-[#5B6D5B]">${calculatedTotalPrice}</span>
+                            <span className="text-[9px] text-[#8E8E82] uppercase tracking-widest block font-bold font-sans">Total Stay</span>
+                            <span className="text-base font-bold font-serif italic text-red-600">${calculatedTotalPrice}</span>
                           </div>
                         )}
 
@@ -544,7 +544,7 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
                           className={`w-full sm:w-auto py-3 px-6 rounded-full text-xs font-bold font-sans uppercase tracking-widest transition-all select-none cursor-pointer text-center ${
                             isFullyBooked || inventoryShort || stayLength === 0
                               ? 'bg-[#F9F8F6] text-[#8E8E82] border border-[#E5E2DA] cursor-not-allowed'
-                              : 'bg-[#5B6D5B] hover:bg-[#4a584a] text-white shadow-2xs'
+                              : 'bg-[#1E3A8A] hover:bg-black text-white border-b-2 border-red-600 shadow-md'
                           }`}
                         >
                           {isFullyBooked

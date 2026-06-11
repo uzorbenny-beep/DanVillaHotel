@@ -85,8 +85,8 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ booking, room, onPayme
             Complete transaction to finalize security booking lock
           </p>
         </div>
-        <div className="flex items-center gap-1.5 px-4 py-1.5 bg-[#E8F0E8] text-[#5B6D5B] rounded-full text-[11px] font-bold uppercase tracking-widest border border-[#5B6D5B]/20">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#5B6D5B]" />
+        <div className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-[#1E3A8A] rounded-full text-[11px] font-bold uppercase tracking-widest border border-[#1E3A8A]/20">
+          <ShieldCheck className="w-3.5 h-3.5 text-[#1E3A8A]" />
           <span>AES-256 Protected</span>
         </div>
       </div>
@@ -138,12 +138,12 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ booking, room, onPayme
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="text-[#8E8E82]">Service Fee & Taxes (10%)</span>
-              <span className="text-[#E8F0E8] bg-[#5B6D5B] text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest font-sans">Included</span>
+              <span className="text-white bg-red-600 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest font-sans">Included</span>
             </div>
             
             <div className="flex justify-between items-center pt-3 border-t border-[#E5E2DA]">
               <span className="text-xs font-bold text-[#8E8E82] tracking-wider uppercase font-serif italic">Total Charge</span>
-              <span className="text-xl font-bold text-[#5B6D5B] font-serif italic">${booking.totalPrice}</span>
+              <span className="text-xl font-bold text-red-600 font-serif italic">${booking.totalPrice}</span>
             </div>
           </div>
         </div>
@@ -154,7 +154,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ booking, room, onPayme
           {/* SECURE GATEWAY sandbox advice card */}
           <div className="p-4 bg-[#F9F8F6] border border-[#E5E2DA] rounded-2xl space-y-2">
             <h4 className="text-xs font-bold text-[#33332D] flex items-center gap-1.5 font-serif italic">
-              <Sparkles className="w-4 h-4 text-[#5B6D5B] shrink-0" />
+              <Sparkles className="w-4 h-4 text-[#1E3A8A] shrink-0" />
               Sandbox Simulator Mode Active
             </h4>
             <p className="text-[11px] text-[#8E8E82] leading-normal font-sans">
@@ -181,7 +181,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ booking, room, onPayme
               onClick={() => setIsFlipped(!isFlipped)}
             >
               {/* Front side */}
-              <div className="absolute inset-0 w-full h-full rounded-3xl bg-gradient-to-br from-[#5B6D5B] via-[#4d5c4d] to-[#33332D] p-6 flex flex-col justify-between text-white backface-hidden shadow-xs">
+              <div className="absolute inset-0 w-full h-full rounded-3xl bg-gradient-to-br from-[#1E3A8A] via-[#102A6A] to-slate-900 border-b-4 border-red-600 p-6 flex flex-col justify-between text-white backface-hidden shadow-lg shadow-blue-900/10">
                 <div className="flex items-start justify-between">
                   <span className="text-[11px] font-bold tracking-widest text-slate-100 font-mono uppercase">Secure Pay</span>
                   <div className="w-10 h-7 bg-white/15 rounded-md border border-white/20 flex items-center justify-center font-bold font-sans text-[10px] text-white">
@@ -212,7 +212,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ booking, room, onPayme
               </div>
 
               {/* Back side */}
-              <div className="absolute inset-0 w-full h-full rounded-3xl bg-gradient-to-br from-[#4d5c4d] via-[#33332D] to-zinc-900 py-6 text-white backface-hidden rotateY-180 shadow-xs flex flex-col justify-between">
+              <div className="absolute inset-0 w-full h-full rounded-3xl bg-gradient-to-br from-[#102A6A] via-slate-900 to-black py-6 text-white backface-hidden rotateY-180 shadow-lg flex flex-col justify-between">
                 <div className="w-full h-11 bg-black/60 mt-1" />
                 <div className="px-6 flex items-center justify-end">
                   <div className="w-full max-w-[170px] bg-slate-100 h-8 rounded-md flex items-center justify-end px-3.5 text-[#33332D] font-mono text-xs font-semibold text-right select-none skew-x-3">
@@ -239,7 +239,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ booking, room, onPayme
                 onFocus={() => setIsFlipped(false)}
                 onChange={(e) => setCardName(e.target.value)}
                 placeholder="Jane Doe"
-                className="w-full px-3.5 py-2.5 border border-[#E5E2DA] bg-white rounded-lg text-xs text-[#33332D] focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B] focus:border-[#5B6D5B] font-medium"
+                className="w-full px-3.5 py-2.5 border border-[#E5E2DA] bg-white rounded-lg text-xs text-black focus:outline-hidden focus:ring-1 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] font-medium"
               />
             </div>
 
@@ -254,7 +254,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ booking, room, onPayme
                   onFocus={() => setIsFlipped(false)}
                   onChange={handleCardNumberChange}
                   placeholder="4111 2222 3333 4444"
-                  className="w-full pl-10 pr-3.5 py-2.5 border border-[#E5E2DA] rounded-lg text-xs font-mono text-[#33332D] focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B] focus:border-[#5B6D5B] font-semibold"
+                  className="w-full pl-10 pr-3.5 py-2.5 border border-[#E5E2DA] rounded-lg text-xs font-mono text-black focus:outline-hidden focus:ring-1 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] font-semibold"
                 />
               </div>
             </div>
@@ -271,7 +271,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ booking, room, onPayme
                     onFocus={() => setIsFlipped(false)}
                     onChange={handleExpiryChange}
                     placeholder="12/28"
-                    className="w-full pl-10 pr-3.5 py-2.5 border border-[#E5E2DA] rounded-lg text-xs font-mono text-[#33332D] focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B] focus:border-[#5B6D5B] font-semibold"
+                    className="w-full pl-10 pr-3.5 py-2.5 border border-[#E5E2DA] rounded-lg text-xs font-mono text-black focus:outline-hidden focus:ring-1 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] font-semibold"
                   />
                 </div>
               </div>
@@ -285,7 +285,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ booking, room, onPayme
                   onFocus={() => setIsFlipped(true)}
                   onChange={handleCvcChange}
                   placeholder="•••"
-                  className="w-full px-3.5 py-2.5 border border-[#E5E2DA] rounded-lg text-xs font-mono text-[#33332D] tracking-widest focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B] focus:border-[#5B6D5B] font-semibold text-center"
+                  className="w-full px-3.5 py-2.5 border border-[#E5E2DA] rounded-lg text-xs font-mono text-black tracking-widest focus:outline-hidden focus:ring-1 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] font-semibold text-center"
                 />
               </div>
             </div>
@@ -310,7 +310,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ booking, room, onPayme
               <button
                 type="submit"
                 disabled={processing}
-                className="inline-flex items-center justify-center gap-2 py-3 px-6 bg-[#5B6D5B] hover:bg-[#4a584a] disabled:bg-[#F9F8F6] disabled:text-[#8E8E82] disabled:border-[#E5E2DA] text-white rounded-full text-xs font-bold uppercase tracking-widest transition-all cursor-pointer shadow-2xs"
+                className="inline-flex items-center justify-center gap-2 py-3 px-6 bg-[#1E3A8A] hover:bg-black disabled:bg-neutral-100 disabled:text-neutral-400 disabled:border-neutral-200 text-white rounded-full text-xs font-bold uppercase tracking-widest border-b-2 border-red-600 transition-all cursor-pointer shadow-md"
               >
                 {processing ? (
                   <>
