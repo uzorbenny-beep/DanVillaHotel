@@ -17,6 +17,10 @@ import {
 } from "firebase/firestore";
 import firebaseConfig from "./firebase-applet-config.json";
 
+// Initialize Firebase App
+const firebaseApp = initializeApp(firebaseConfig);
+export const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+
 // Configure local uploads storage
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -65,8 +69,7 @@ interface Booking {
   updatedAt: string;
 }
 
-const clientApp = initializeApp(firebaseConfig);
-const db = getFirestore(clientApp, firebaseConfig.firestoreDatabaseId);
+
 
 const app = express();
 const PORT = 3000;

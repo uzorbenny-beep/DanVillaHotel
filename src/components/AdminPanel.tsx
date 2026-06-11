@@ -256,8 +256,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, settings, onUpda
 
     } catch (error: any) {
       console.error(error);
-      const errObj = error.message ? JSON.parse(error.message) : null;
-      if (errObj && errObj.error.includes('permission-denied')) {
+      let errObj = null;
+      try {
+        errObj = error.message ? JSON.parse(error.message) : null;
+      } catch (e) {
+        // Error message was not JSON, which is fine
+      }
+      if (errObj && errObj.error && errObj.error.includes('permission-denied')) {
         showFeedback('error', 'Authentication Warning: You must log in as Administrator (uzorbenny51@gmail.com) to read or modify registration files.');
       } else {
         showFeedback('error', 'Failed to retrieve cloud administrative registries.');
