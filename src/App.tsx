@@ -7,9 +7,9 @@ import { MyBookings } from './components/MyBookings';
 import { AdminPanel } from './components/AdminPanel';
 import { AuthBarrierMock } from './components/AuthBarrierMock';
 import { PropertyMapModal } from './components/PropertyMapModal';
-import { fetchHotels, createBooking } from './lib/api';
-import { Hotel, Room, Booking } from './types';
-import { Globe, PlaneTakeoff, ShieldAlert, Sparkles, LogOut, Loader2, Sparkle, Search, CheckCircle } from 'lucide-react';
+import { fetchHotels, createBooking, fetchSettings } from './lib/api';
+import { Hotel, Room, Booking, SystemSettings } from './types';
+import { Globe, PlaneTakeoff, ShieldAlert, Sparkles, LogOut, Loader2, Sparkle, Search, CheckCircle, X, MessageSquare, Landmark, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 function BookingAppContent() {
@@ -18,6 +18,20 @@ function BookingAppContent() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loadingHotels, setLoadingHotels] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
+
+  // Load dynamic system configurations on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const s = await fetchSettings();
+        setSettings(s);
+      } catch (e) {
+        console.error("Failed to fetch system settings", e);
+      }
+    };
+    loadSettings();
+  }, []);
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,6 +52,29 @@ function BookingAppContent() {
   } | null>(null);
 
   const [creatingReserve, setCreatingReserve] = useState(false);
+
+  // Resume reservation buffer
+  const [pendingReserve, setPendingReserve] = useState<{
+    room: Room;
+    checkIn: string;
+    checkOut: string;
+    roomCount: number;
+  } | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Resume booking when credentials are synchronized
+  useEffect(() => {
+    if (user && pendingReserve) {
+      handleInitiateReserve(
+        pendingReserve.room,
+        pendingReserve.checkIn,
+        pendingReserve.checkOut,
+        pendingReserve.roomCount
+      );
+      setPendingReserve(null);
+      setShowAuthModal(false);
+    }
+  }, [user, pendingReserve]);
 
   // Support quick direct admin access via query parameter ?view=admin or ?admin=true
   useEffect(() => {
@@ -90,8 +127,8 @@ function BookingAppContent() {
     roomCount: number
   ) => {
     if (!user) {
-      // Prompt logins
-      alert("Authentication required. Please sign in or use standard mock credentials first.");
+      setPendingReserve({ room, checkIn, checkOut, roomCount });
+      setShowAuthModal(true);
       return;
     }
 
@@ -101,14 +138,14 @@ function BookingAppContent() {
       // Write the secure temporary booking on the server
       const bookingRecord = await createBooking({
         userId: user.uid,
-        userEmail: user.email,
+        userEmail: user.email || '',
         hotelId: room.hotelId,
         roomId: room.id,
         checkIn,
         checkOut,
         roomCount,
-        guestName: user.displayName,
-        guestEmail: user.email
+        guestName: user.displayName || 'Guest User',
+        guestEmail: user.email || 'guest@example.com'
       });
 
       setSelectedRoom(room);
@@ -226,9 +263,13 @@ function BookingAppContent() {
                 </button>
               </div>
             ) : (
-              <span className="text-xs font-serif italic text-[#8E8E82] px-4 py-2 bg-white border border-[#E5E2DA] rounded-full shadow-2xs">
-                No active session
-              </span>
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="text-[11px] font-sans font-bold text-white bg-[#1E3A8A] hover:bg-black px-4 py-2 rounded-full shadow-md transition-all cursor-pointer inline-flex items-center gap-1 hover:scale-105"
+              >
+                <Sparkles className="w-3 h-3 text-yellow-400" />
+                <span>Sign In / Enter Sandbox</span>
+              </button>
             )}
           </div>
         </div>
@@ -274,7 +315,11 @@ function BookingAppContent() {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.3 }}
             >
-              <AdminPanel onBack={handleResetCatalog} />
+              <AdminPanel 
+                onBack={handleResetCatalog} 
+                settings={settings}
+                onUpdateSettings={setSettings}
+              />
             </motion.div>
           )}
 
@@ -407,6 +452,7 @@ function BookingAppContent() {
                 room={selectedRoom}
                 onPaymentSuccess={handlePaymentSuccess}
                 onCancel={handleCancelBookingFlow}
+                settings={settings}
               />
             </motion.div>
           )}
@@ -421,7 +467,12 @@ function BookingAppContent() {
               transition={{ duration: 0.3 }}
             >
               {user ? (
-                <MyBookings userId={user.uid} hotels={hotels} onBack={handleResetCatalog} />
+                <MyBookings 
+                  userId={user.uid} 
+                  hotels={hotels} 
+                  onBack={handleResetCatalog} 
+                  settings={settings}
+                />
               ) : (
                 <div className="max-w-xl mx-auto space-y-6">
                   <AuthBarrierMock />
@@ -444,14 +495,39 @@ function BookingAppContent() {
               </div>
               
               <div>
-                <span className="text-[11px] font-mono font-bold tracking-widest text-[#1E3A8A] block uppercase">
-                  Transaction Approved
+                <span className="text-[11px] font-mono font-bold tracking-widest text-[#1E3A8A] block uppercase flex items-center justify-center gap-1.5">
+                  {activeBooking.paymentMethod === 'bank_transfer' ? (
+                    <>
+                      <Landmark className="w-3.5 h-3.5 text-amber-700" />
+                      <span>Transfer Verification Pending</span>
+                    </>
+                  ) : activeBooking.paymentMethod === 'cash' ? (
+                    <>
+                      <Wallet className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Cash Reservation Blocked</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldAlert className="w-3.5 h-3.5 text-blue-700" />
+                      <span>Transaction Approved Securely</span>
+                    </>
+                  )}
                 </span>
-                <h2 className="text-2xl font-serif italic text-black font-extrabold tracking-tight mt-1">
-                  Lodging secured!
+                <h2 className="text-2xl font-serif italic text-black font-extrabold tracking-tight mt-1.5">
+                  {activeBooking.paymentMethod === 'bank_transfer'
+                    ? "Verify Bank Transfer Details"
+                    : activeBooking.paymentMethod === 'cash'
+                    ? "Lodging reserved!"
+                    : (settings?.receiptSuccessTitle || "Lodging secured!")}
                 </h2>
-                <p className="text-xs text-[#8E8E82] mt-2 leading-relaxed">
-                  Your payment has cleared the gateway securely, and room availability records have been locked globally in real-time. Feel free to access your printable active travel vouchers.
+                <p className="text-xs text-[#8E8E82] mt-2.5 leading-relaxed font-sans">
+                  {activeBooking.paymentMethod === 'bank_transfer' ? (
+                    <span>Your room is holding-locked. Since you chose <strong>Bank Transfer</strong>, please transfer the exact naira fee to {settings?.bankName || "Sterling Bank"} ({settings?.bankAccountNumber || "1024589364"}) and tap the green button below to forward your payment receipt to us on WhatsApp.</span>
+                  ) : activeBooking.paymentMethod === 'cash' ? (
+                    <span>Your room dates have been secured. Since you chose <strong>Pay Cash on Arrival</strong>, you will settle the bill of ₦{activeBooking.totalPrice.toLocaleString()} at check-in. Please tap the green WhatsApp alert below to register your itinerary details with coordinators.</span>
+                  ) : (
+                    <span>{settings?.receiptSuccessMessage || "Your card transaction cleared securely and rooms have been locked in real-time. Feel free to view your vouchers. Kindly tap the green WhatsApp button below to forward your confirmation details to our guest liaison desk."}</span>
+                  )}
                 </p>
               </div>
 
@@ -470,9 +546,50 @@ function BookingAppContent() {
                   <span className="font-semibold text-[#33332D]">{selectedRoom.name}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-[#8E8E82]">Secure Charge Amount</span>
-                  <span className="font-bold text-red-600 font-serif text-sm">${activeBooking.totalPrice}</span>
+                  <span className="text-[#8E8E82]">Payment Preference</span>
+                  <span className="font-bold text-gray-700 uppercase tracking-widest text-[9px]">
+                    {activeBooking.paymentMethod === 'bank_transfer' ? 'Sterling Bank Transfer' : activeBooking.paymentMethod === 'cash' ? 'Cash on Arrival' : 'Secure Credit Card'}
+                  </span>
                 </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#8E8E82]">Account Settle Fee</span>
+                  <span className="font-bold text-red-600 font-serif text-sm">₦{activeBooking.totalPrice.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Company WhatsApp Forward Trigger (Crucial Requirement) */}
+              <div className="pt-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const payModeMap = {
+                      card: 'Credit/Debit Card (Approved Online)',
+                      bank_transfer: 'Bank Transfer (Pending Verification)',
+                      cash: 'Cash / Pay on Arrival (At Desk)'
+                    };
+                    const payMethodStr = payModeMap[activeBooking.paymentMethod || 'card'] || 'Not Specified';
+
+                    const text = `Hello DanVilla Resorts, I have successfully locked a reservation:
+• *Booking ID / Ticket:* ${activeBooking.id}
+• *Guest Name:* ${activeBooking.guestName}
+• *Liaison Email:* ${activeBooking.guestEmail}
+• *Hotel Location:* ${selectedHotel.name} (${selectedRoom.name})
+• *Scheduled stay duration:* ${activeBooking.checkIn} to ${activeBooking.checkOut}
+• *Selected Suites quantity:* ${activeBooking.roomCount} room(s)
+• *Total due settlement:* ₦${activeBooking.totalPrice.toLocaleString()}
+• *Selected Payment Mode:* ${payMethodStr}
+
+Kindly review and confirm my vacation booking. Thank you!`;
+
+                    const url = `https://wa.me/2348123456789?text=${encodeURIComponent(text)}`;
+                    window.open(url, '_blank');
+                  }}
+                  className="w-full py-3.5 px-5 bg-emerald-600 hover:bg-emerald-700 hover:scale-[1.02] text-white rounded-full text-xs font-bold uppercase tracking-widest cursor-pointer transition-all flex items-center justify-center gap-2 shadow-md"
+                  title="Send booking details & screenshot receipt direct to corporate WhatsApp"
+                >
+                  <MessageSquare className="w-4 h-4 text-white shrink-0 animate-pulse" />
+                  <span>Send Receipt to Company WhatsApp</span>
+                </button>
               </div>
 
               <div className="flex items-center gap-3 pt-2">
@@ -512,6 +629,26 @@ function BookingAppContent() {
           hotel={activeMapHotel}
           onClose={() => setActiveMapHotel(null)}
         />
+      )}
+
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl relative shadow-2xl max-w-md w-full border border-neutral-200 overflow-hidden">
+            <button
+              onClick={() => {
+                setShowAuthModal(false);
+                setPendingReserve(null);
+              }}
+              className="absolute top-4 right-4 p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-black rounded-full cursor-pointer transition-all z-50"
+              title="Dismiss"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="p-1">
+              <AuthBarrierMock />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -367,6 +367,24 @@ const seedRooms: Room[] = [
   }
 ];
 
+// Default configurations
+const DEFAULT_SETTINGS = {
+  id: "system",
+  whatsappNumber: "2348123456789",
+  whatsappTemplate: `Hello DanVilla Resorts, I have successfully locked a reservation:\n• *Booking ID / Ticket:* {id}\n• *Guest Name:* {guestName}\n• *Liaison Email:* {guestEmail}\n• *Hotel Location:* {hotelName} ({roomName})\n• *Scheduled stay duration:* {checkIn} to {checkOut}\n• *Selected Suites quantity:* {roomCount} room(s)\n• *Total due settlement:* ₦{totalPrice}\n• *Selected Payment Mode:* {paymentMethod}\n\nKindly review and confirm my vacation booking. Thank you!`,
+  bankName: "Sterling Bank Plc",
+  bankAccountName: "DanVilla Res. & Leisure Ltd",
+  bankAccountNumber: "1024589364",
+  cardMethodsEnabled: true,
+  transferMethodsEnabled: true,
+  cashMethodsEnabled: true,
+  sandboxSimulateDecline: false,
+  sandboxDeclineCode: "4444",
+  sandboxDeclineMessage: "Declined: Insufficient funds on the provided card account.",
+  receiptSuccessTitle: "Lodging secured!",
+  receiptSuccessMessage: "Your payment has cleared the gateway securely, and room availability records have been locked globally in real-time. Feel free to access your printable active travel vouchers."
+};
+
 // Seed function
 async function verifyAndSeedDatabase() {
   try {
@@ -393,6 +411,17 @@ async function verifyAndSeedDatabase() {
         console.log(`Room already exists: ${room.name}`);
       }
     }
+
+    console.log("Verifying System Settings in Firestore for DanVilla Hotel...");
+    const settingsRef = doc(db, "settings", "system");
+    const settingsSnap = await getDoc(settingsRef);
+    if (!settingsSnap.exists()) {
+      await setDoc(settingsRef, DEFAULT_SETTINGS);
+      console.log("Seeded default system settings.");
+    } else {
+      console.log("System Settings already exist.");
+    }
+
     console.log("Database verification and seeding completed successfully!");
   } catch (error) {
     console.error("Failed to seed/verify database: ", error);
@@ -524,9 +553,21 @@ app.get("/api/admin/bookings", async (req, res) => {
 // API: Admin Update Booking State Securely
 app.post("/api/admin/bookings/update", async (req, res) => {
   try {
-    const { bookingId, status, paymentStatus } = req.body;
+    const { 
+      bookingId, 
+      status, 
+      paymentStatus, 
+      paymentMethod,
+      guestName,
+      guestEmail,
+      checkIn,
+      checkOut,
+      roomCount,
+      totalPrice
+    } = req.body;
+
     if (!bookingId || !status || !paymentStatus) {
-      return res.status(400).json({ error: "Missing parameters bookingId, status, or paymentStatus." });
+      return res.status(400).json({ error: "Missing core parameters: bookingId, status, or paymentStatus must be provided." });
     }
 
     const docRef = doc(db, "bookings", bookingId);
@@ -535,11 +576,21 @@ app.post("/api/admin/bookings/update", async (req, res) => {
       return res.status(404).json({ error: "Reservation details could not be found." });
     }
 
-    await updateDoc(docRef, {
+    const updatePayload: any = {
       status,
       paymentStatus,
       updatedAt: new Date().toISOString()
-    });
+    };
+
+    if (paymentMethod !== undefined) updatePayload.paymentMethod = paymentMethod;
+    if (guestName !== undefined) updatePayload.guestName = guestName;
+    if (guestEmail !== undefined) updatePayload.guestEmail = guestEmail;
+    if (checkIn !== undefined) updatePayload.checkIn = checkIn;
+    if (checkOut !== undefined) updatePayload.checkOut = checkOut;
+    if (roomCount !== undefined) updatePayload.roomCount = Number(roomCount);
+    if (totalPrice !== undefined) updatePayload.totalPrice = Number(totalPrice);
+
+    await updateDoc(docRef, updatePayload);
 
     res.json({ success: true });
   } catch (error: any) {
@@ -749,10 +800,21 @@ app.post("/api/bookings/create", async (req, res) => {
 // Keep validation secret, checking credit-cards securely with interactive 3D secure checks
 app.post("/api/payments/charge", async (req, res) => {
   try {
-    const { bookingId, cardNumber, cardExpiry, cardCvc } = req.body;
+    const { bookingId, cardNumber, cardExpiry, cardCvc, paymentMethod = 'card' } = req.body;
 
-    if (!bookingId || !cardNumber || !cardExpiry || !cardCvc) {
-      return res.status(400).json({ error: "Card credentials and booking token must be provided." });
+    if (!bookingId) {
+      return res.status(400).json({ error: "Booking token must be provided." });
+    }
+
+    // Fetch active settings first
+    let settings = DEFAULT_SETTINGS;
+    try {
+      const settingsSnap = await getDoc(doc(db, "settings", "system"));
+      if (settingsSnap.exists()) {
+        settings = settingsSnap.data() as any;
+      }
+    } catch (e) {
+      console.warn("Could not fetch settings from Firestore, fallback to defaults.", e);
     }
 
     // Fetch the booking from Firestore
@@ -768,39 +830,101 @@ app.post("/api/payments/charge", async (req, res) => {
       return res.status(400).json({ error: "Cannot process charge on cancelled reservation files." });
     }
 
-    // Payment simulation gateway validation rules:
-    // Simulated decline codes based on input combinations
-    const cleanCard = cardNumber.replace(/\s+/g, '');
-    
-    // Insufficient funds trigger
-    if (cleanCard.endsWith("4444")) {
-      return res.status(402).json({ error: "Declined: Insufficient funds on the provided card account." });
-    }
-    
-    // Card expired trigger
-    if (cleanCard.endsWith("0000")) {
-      return res.status(402).json({ error: "Declined: The credit card account has expired or been restricted." });
-    }
-
-    // Success transaction pathway
-    const updatePayload = {
-      status: 'confirmed' as const,
-      paymentStatus: 'paid' as const,
-      paymentIntentId: `pi_${Math.random().toString(36).substr(2, 14)}`,
-      updatedAt: new Date().toISOString()
-    };
-
-    await updateDoc(docRef, updatePayload);
-
-    res.json({
-      success: true,
-      message: "Gateway Secure Transaction Approved",
-      paymentIntentId: updatePayload.paymentIntentId,
-      updatedReservation: {
-        ...booking,
-        ...updatePayload
+    if (paymentMethod === 'card') {
+      if (!settings.cardMethodsEnabled) {
+        return res.status(400).json({ error: "Decline: Secure Online Card payments are temporarily disabled by the resort admin." });
       }
-    });
+
+      if (!cardNumber || !cardExpiry || !cardCvc) {
+        return res.status(400).json({ error: "Card credentials and booking token must be provided." });
+      }
+
+      // Payment simulation gateway validation rules matching dynamic settings
+      const cleanCard = cardNumber.replace(/\s+/g, '');
+      const declineCode = settings.sandboxDeclineCode || "4444";
+      const declineMessage = settings.sandboxDeclineMessage || "Declined: Insufficient funds on the provided card account.";
+      
+      // Dynamic simulated decline
+      if (cleanCard.endsWith(declineCode) || (settings.sandboxSimulateDecline && cleanCard.endsWith("4444"))) {
+        return res.status(402).json({ error: declineMessage });
+      }
+      
+      // Standard expired card
+      if (cleanCard.endsWith("0000")) {
+        return res.status(402).json({ error: "Declined: The credit card account has expired or been restricted." });
+      }
+
+      // Success transaction pathway
+      const updatePayload = {
+        status: 'confirmed' as const,
+        paymentStatus: 'paid' as const,
+        paymentMethod: 'card' as const,
+        paymentIntentId: `pi_${Math.random().toString(36).substr(2, 14)}`,
+        updatedAt: new Date().toISOString()
+      };
+
+      await updateDoc(docRef, updatePayload);
+
+      return res.json({
+        success: true,
+        message: "Gateway Secure Transaction Approved",
+        paymentIntentId: updatePayload.paymentIntentId,
+        updatedReservation: {
+          ...booking,
+          ...updatePayload
+        }
+      });
+    } else if (paymentMethod === 'bank_transfer') {
+      if (!settings.transferMethodsEnabled) {
+        return res.status(400).json({ error: "Decline: Bank transfer reservations are temporarily disabled by the resort admin." });
+      }
+
+      const updatePayload = {
+        status: 'confirmed' as const,
+        paymentStatus: 'pending' as const,
+        paymentMethod: 'bank_transfer' as const,
+        paymentIntentId: `bt_${Math.random().toString(36).substr(2, 12)}`,
+        updatedAt: new Date().toISOString()
+      };
+
+      await updateDoc(docRef, updatePayload);
+
+      return res.json({
+        success: true,
+        message: "Bank Transfer booking recorded. Pending verification.",
+        paymentIntentId: updatePayload.paymentIntentId,
+        updatedReservation: {
+          ...booking,
+          ...updatePayload
+        }
+      });
+    } else if (paymentMethod === 'cash') {
+      if (!settings.cashMethodsEnabled) {
+        return res.status(400).json({ error: "Decline: Pay on arrival (cash) bookings are temporarily disabled by the resort admin." });
+      }
+
+      const updatePayload = {
+        status: 'confirmed' as const,
+        paymentStatus: 'pending' as const,
+        paymentMethod: 'cash' as const,
+        paymentIntentId: `cash_${Math.random().toString(36).substr(2, 12)}`,
+        updatedAt: new Date().toISOString()
+      };
+
+      await updateDoc(docRef, updatePayload);
+
+      return res.json({
+        success: true,
+        message: "Cash booking recorded. Settle payment upon arrival.",
+        paymentIntentId: updatePayload.paymentIntentId,
+        updatedReservation: {
+          ...booking,
+          ...updatePayload
+        }
+      });
+    } else {
+      return res.status(400).json({ error: "Invalid payment method specified." });
+    }
 
   } catch (error) {
     console.error("POST /api/payments/charge failed: ", error);
@@ -839,6 +963,33 @@ app.post("/api/bookings/cancel", async (req, res) => {
   } catch (error) {
     console.error("POST /api/bookings/cancel failed: ", error);
     res.status(500).json({ error: "Unable to complete reservation cancellation." });
+  }
+});
+
+// API: Get Active System Settings
+app.get("/api/settings", async (req, res) => {
+  try {
+    const docRef = doc(db, "settings", "system");
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      return res.json(DEFAULT_SETTINGS);
+    }
+    res.json(docSnap.data());
+  } catch (error) {
+    console.error("GET /api/settings failed: ", error);
+    res.json(DEFAULT_SETTINGS);
+  }
+});
+
+// API: Save system settings overrides
+app.post("/api/settings/update", async (req, res) => {
+  try {
+    const docRef = doc(db, "settings", "system");
+    await setDoc(docRef, req.body, { merge: true });
+    res.json({ success: true, message: "System settings updated successfully." });
+  } catch (error) {
+    console.error("POST /api/settings/update failed: ", error);
+    res.status(500).json({ error: "Could not apply system settings overrides." });
   }
 });
 

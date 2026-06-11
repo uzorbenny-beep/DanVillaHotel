@@ -37,5 +37,10 @@ service cloud.firestore {
       // Allow unrestricted access for preview/sandbox Express backend operations
       allow read, write: if true;
     }
+
+    // 6. Settings collection public access
+    match /settings/{settingsId} {
+      allow read, write: if true;
+    }
   }
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Tag, UserCheck, AlertOctagon, Undo, Loader2, Sparkles, Building2 } from 'lucide-react';
-import { Booking, Room, Hotel } from '../types';
+import { Calendar, Tag, UserCheck, AlertOctagon, Undo, Loader2, Sparkles, Building2, MessageSquare, Landmark, Wallet, CreditCard } from 'lucide-react';
+import { Booking, Room, Hotel, SystemSettings } from '../types';
 import { cancelBooking } from '../lib/api';
 import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -10,9 +10,10 @@ interface MyBookingsProps {
   userId: string;
   hotels: Hotel[];
   onBack: () => void;
+  settings?: SystemSettings | null;
 }
 
-export const MyBookings: React.FC<MyBookingsProps> = ({ userId, hotels, onBack }) => {
+export const MyBookings: React.FC<MyBookingsProps> = ({ userId, hotels, onBack, settings }) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,12 +64,48 @@ export const MyBookings: React.FC<MyBookingsProps> = ({ userId, hotels, onBack }
     setCancellingId(bookingId);
     try {
       await cancelBooking(bookingId, userId);
-      // Success triggers live state sync via onSnapshot listener automatically!
     } catch (error: any) {
       alert(error.message || "Failed to cancel your reservation. Please consult administration.");
     } finally {
       setCancellingId(null);
     }
+  };
+
+  const handleWhatsAppSend = (booking: Booking, roomName: string, hotelName: string) => {
+    const payModeMap = {
+      card: 'Credit/Debit Card (Approved Online)',
+      bank_transfer: 'Bank Transfer (Pending Verification)',
+      cash: 'Cash / Pay on Arrival (At Desk)'
+    };
+    const payMethodStr = payModeMap[booking.paymentMethod || 'card'] || 'Not Specified';
+
+    const template = settings?.whatsappTemplate || `Hello DanVilla Resorts, I have successfully locked a reservation:
+• *Booking ID / Ticket:* {id}
+• *Guest Name:* {guestName}
+• *Liaison Email:* {guestEmail}
+• *Hotel Location:* {hotelName} ({roomName})
+• *Scheduled stay duration:* {checkIn} to {checkOut}
+• *Selected Suites quantity:* {roomCount} room(s)
+• *Total due settlement:* ₦{totalPrice}
+• *Selected Payment Mode:* {paymentMethod}
+
+Kindly review and confirm my vacation booking. Thank you!`;
+
+    const text = template
+      .replace(/{id}/g, booking.id || '')
+      .replace(/{guestName}/g, booking.guestName || '')
+      .replace(/{guestEmail}/g, booking.guestEmail || '')
+      .replace(/{hotelName}/g, hotelName || '')
+      .replace(/{roomName}/g, roomName || '')
+      .replace(/{checkIn}/g, booking.checkIn || '')
+      .replace(/{checkOut}/g, booking.checkOut || '')
+      .replace(/{roomCount}/g, String(booking.roomCount || ''))
+      .replace(/{totalPrice}/g, (booking.totalPrice || 0).toLocaleString())
+      .replace(/{paymentMethod}/g, payMethodStr);
+
+    const whatsappNum = settings?.whatsappNumber || '2348123456789';
+    const url = `https://wa.me/${whatsappNum}?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
   };
 
   if (loading) {
@@ -127,30 +164,58 @@ export const MyBookings: React.FC<MyBookingsProps> = ({ userId, hotels, onBack }
                 layoutId={`booking-card-${booking.id}`}
                 className="bg-white border border-gray-150 rounded-2xl overflow-hidden flex flex-col md:flex-row"
               >
-                {/* Left side: Voucher voucher representation with a clean barcode */}
+                {/* Left side: Voucher representation with clean barcode */}
                 <div className="p-6 md:p-8 flex flex-col justify-between border-b md:border-b-0 md:border-r border-dashed border-gray-200 w-full md:w-80 shrink-0 bg-gray-50/50">
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-mono text-gray-400 tracking-widest uppercase">Travel Voucher</span>
-                      
-                      {/* Status indicator pill */}
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase ${
-                        booking.status === 'cancelled'
-                          ? 'bg-red-50 text-red-600 border border-red-100'
-                          : booking.paymentStatus === 'paid'
-                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                          : 'bg-amber-50 text-amber-600 border border-amber-150'
-                      }`}>
-                        {booking.status === 'cancelled'
-                          ? 'Cancelled & Void'
-                          : booking.paymentStatus === 'paid'
-                          ? 'Confirmed Receipt'
-                          : 'Pending Payment'
-                        }
-                      </span>
+                    
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-mono text-gray-400 tracking-widest uppercase">Travel Voucher</span>
+                        
+                        {/* Status indicator pill */}
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase ${
+                          booking.status === 'cancelled'
+                            ? 'bg-red-50 text-red-600 border border-red-100'
+                            : booking.paymentStatus === 'paid'
+                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                            : 'bg-amber-50 text-amber-600 border border-amber-150 font-semibold'
+                        }`}>
+                          {booking.status === 'cancelled'
+                            ? 'Cancelled & Void'
+                            : booking.paymentStatus === 'paid'
+                            ? 'Paid (Checked)'
+                            : 'Pending Verification'
+                          }
+                        </span>
+                      </div>
+
+                      {/* Payment method selection tag */}
+                      {booking.status !== 'cancelled' && (
+                        <div className="flex items-center justify-between text-[10px] text-gray-500 font-sans border-t border-gray-100/60 pt-1.5">
+                          <span className="text-gray-400 text-[8px] font-semibold uppercase tracking-wider">Method:</span>
+                          <span className="font-bold flex items-center gap-1 text-gray-700">
+                            {booking.paymentMethod === 'bank_transfer' ? (
+                              <>
+                                <Landmark className="w-3.5 h-3.5 text-amber-700" />
+                                <span>Bank Transfer</span>
+                              </>
+                            ) : booking.paymentMethod === 'cash' ? (
+                              <>
+                                <Wallet className="w-3.5 h-3.5 text-emerald-700" />
+                                <span>Cash (At Arrival)</span>
+                              </>
+                            ) : (
+                              <>
+                                <CreditCard className="w-3.5 h-3.5 text-blue-700" />
+                                <span>Card Pay</span>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="space-y-1 block pt-2 border-t border-gray-100">
                       <h4 className="text-[11px] text-gray-400 font-bold uppercase tracking-wider block">Reservation Token</h4>
                       <span className="text-xs font-mono font-medium text-gray-700 block select-all">{booking.id}</span>
                     </div>
@@ -161,8 +226,8 @@ export const MyBookings: React.FC<MyBookingsProps> = ({ userId, hotels, onBack }
                     </div>
 
                     <div className="space-y-1">
-                      <h4 className="text-[11px] text-gray-400 font-bold uppercase tracking-wider block">Total Charge Settle</h4>
-                      <span className="text-sm font-bold text-amber-800 block">${booking.totalPrice}</span>
+                      <h4 className="text-[11px] text-gray-400 font-bold uppercase tracking-wider block">Total Charge (₦)</h4>
+                      <span className="text-sm font-bold text-amber-800 block">₦{booking.totalPrice.toLocaleString()}</span>
                     </div>
                   </div>
 
@@ -227,36 +292,49 @@ export const MyBookings: React.FC<MyBookingsProps> = ({ userId, hotels, onBack }
                   </div>
 
                   {/* Actions row */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-auto">
                     <p className="text-[10.5px] text-gray-400 font-mono flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       Created at {new Date(booking.createdAt).toLocaleString()}
                     </p>
 
-                    {booking.status !== 'cancelled' ? (
-                      <button
-                        disabled={cancellingId === booking.id}
-                        onClick={() => handleCancel(booking.id)}
-                        className="inline-flex items-center gap-2 py-2 px-4.5 border border-red-200/50 text-red-700 hover:bg-red-50 text-xs font-semibold rounded-xl transition-all cursor-pointer select-none self-end sm:self-auto focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
-                      >
-                        {cancellingId === booking.id ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Releasing inventory...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Undo className="w-3.5 h-3.5" />
-                            <span>Cancel reservation</span>
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      <div className="text-xs font-mono font-medium text-red-600 bg-red-50 border border-red-100 py-1.5 px-3 rounded-lg flex items-center gap-1.5 select-none uppercase self-end sm:self-auto">
-                        <AlertOctagon className="w-4 h-4" />
-                        <span>Inventory reference voided</span>
-                      </div>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {booking.status !== 'cancelled' && (
+                        <button
+                          onClick={() => handleWhatsAppSend(booking, rType?.name || 'Exclusive Suite', hotel?.name || 'DanVilla Resort')}
+                          className="inline-flex items-center gap-1.5 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs focus:outline-hidden"
+                          title="Forward booking proof details direct to company WhatsApp reception desk"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-white animate-pulse" />
+                          <span>Send WhatsApp Receipt</span>
+                        </button>
+                      )}
+
+                      {booking.status !== 'cancelled' ? (
+                        <button
+                          disabled={cancellingId === booking.id}
+                          onClick={() => handleCancel(booking.id)}
+                          className="inline-flex items-center gap-2 py-2 px-4.5 border border-red-200/50 text-red-700 hover:bg-red-50 text-xs font-semibold rounded-xl transition-all cursor-pointer select-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                        >
+                          {cancellingId === booking.id ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Releasing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Undo className="w-3.5 h-3.5" />
+                              <span>Cancel Voucher</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="text-xs font-mono font-medium text-red-600 bg-red-50 border border-red-100 py-1.5 px-3 rounded-lg flex items-center gap-1.5 select-none uppercase">
+                          <AlertOctagon className="w-4 h-4" />
+                          <span>Inventory voided</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </motion.div>

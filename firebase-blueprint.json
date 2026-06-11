@@ -67,6 +67,28 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["id", "userId", "hotelId", "roomId", "checkIn", "checkOut", "roomCount", "totalPrice", "status", "paymentStatus"]
+    },
+    "SystemSettings": {
+      "title": "SystemSettings",
+      "description": "Dynamic configurations for payment gateways, receipt templates, WhatsApp numbers, and sandbox options.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "whatsappNumber": { "type": "string" },
+        "whatsappTemplate": { "type": "string" },
+        "bankName": { "type": "string" },
+        "bankAccountName": { "type": "string" },
+        "bankAccountNumber": { "type": "string" },
+        "cardMethodsEnabled": { "type": "boolean" },
+        "transferMethodsEnabled": { "type": "boolean" },
+        "cashMethodsEnabled": { "type": "boolean" },
+        "sandboxSimulateDecline": { "type": "boolean" },
+        "sandboxDeclineCode": { "type": "string" },
+        "sandboxDeclineMessage": { "type": "string" },
+        "receiptSuccessTitle": { "type": "string" },
+        "receiptSuccessMessage": { "type": "string" }
+      },
+      "required": ["id", "whatsappNumber", "whatsappTemplate", "bankName", "bankAccountName", "bankAccountNumber", "cardMethodsEnabled", "transferMethodsEnabled", "cashMethodsEnabled", "sandboxSimulateDecline", "sandboxDeclineCode", "sandboxDeclineMessage", "receiptSuccessTitle", "receiptSuccessMessage"]
     }
   },
   "firestore": {
@@ -81,6 +103,10 @@
     "/bookings/{bookingId}": {
       "schema": "Booking",
       "description": "A collection of user reservations and statuses"
+    },
+    "/settings/{settingsId}": {
+      "schema": "SystemSettings",
+      "description": "Dynamic system setting profiles"
     }
   }
 }

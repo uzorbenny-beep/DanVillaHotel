@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   fetchHotels, 
-  fetchRooms 
+  fetchRooms,
+  updateSettings
 } from '../lib/api';
-import { Hotel, Room, Booking } from '../types';
+import { Hotel, Room, Booking, SystemSettings } from '../types';
 import { 
   db, 
   auth, 
@@ -35,12 +36,22 @@ import {
   Image as ImageIcon, 
   Tag, 
   X, 
-  ArrowLeftRight 
+  ArrowLeftRight,
+  Settings as SettingsIcon,
+  ToggleLeft,
+  ToggleRight,
+  Save,
+  MessageSquare,
+  Landmark,
+  ShieldAlert,
+  SlidersHorizontal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AdminPanelProps {
   onBack: () => void;
+  settings?: SystemSettings | null;
+  onUpdateSettings?: (s: SystemSettings) => void;
 }
 
 export const isMediaVideo = (url: string | undefined): boolean => {
@@ -59,11 +70,89 @@ export const cleanMediaUrl = (url: string | undefined): string => {
   return url;
 };
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'sections' | 'rooms' | 'bookings'>('overview');
+export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack, settings, onUpdateSettings }) => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'sections' | 'rooms' | 'bookings' | 'settings'>('overview');
   
   // Specific hotel category filter selections (Front View, Rooms, Bar, VIP Club, Snooker, Pool, Kitchen)
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'front_view' | 'rooms' | 'bar' | 'vip_club' | 'snooker' | 'pool' | 'kitchen'>('all');
+
+  // Localized System Settings edits states
+  const [whatsappNumber, setWhatsappNumber] = useState(settings?.whatsappNumber || '2348123456789');
+  const [whatsappTemplate, setWhatsappTemplate] = useState(settings?.whatsappTemplate || '');
+  const [bankName, setBankName] = useState(settings?.bankName || 'Sterling Bank Plc');
+  const [bankAccountName, setBankAccountName] = useState(settings?.bankAccountName || 'DanVilla Res. & Leisure Ltd');
+  const [bankAccountNumber, setBankAccountNumber] = useState(settings?.bankAccountNumber || '1024589364');
+  const [cardMethodsEnabled, setCardMethodsEnabled] = useState(settings?.cardMethodsEnabled ?? true);
+  const [transferMethodsEnabled, setTransferMethodsEnabled] = useState(settings?.transferMethodsEnabled ?? true);
+  const [cashMethodsEnabled, setCashMethodsEnabled] = useState(settings?.cashMethodsEnabled ?? true);
+  
+  const [sandboxSimulateDecline, setSandboxSimulateDecline] = useState(settings?.sandboxSimulateDecline ?? false);
+  const [sandboxDeclineCode, setSandboxDeclineCode] = useState(settings?.sandboxDeclineCode || '4444');
+  const [sandboxDeclineMessage, setSandboxDeclineMessage] = useState(settings?.sandboxDeclineMessage || 'Declined: Insufficient funds on the provided card account.');
+
+  const [receiptSuccessTitle, setReceiptSuccessTitle] = useState(settings?.receiptSuccessTitle || 'Lodging secured!');
+  const [receiptSuccessMessage, setReceiptSuccessMessage] = useState(settings?.receiptSuccessMessage || '');
+
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsSuccessMsg, setSettingsSuccessMsg] = useState('');
+  const [settingsErrorMsg, setSettingsErrorMsg] = useState('');
+
+  // Sync state if settings prop changes
+  useEffect(() => {
+    if (settings) {
+      setWhatsappNumber(settings.whatsappNumber);
+      setWhatsappTemplate(settings.whatsappTemplate);
+      setBankName(settings.bankName);
+      setBankAccountName(settings.bankAccountName);
+      setBankAccountNumber(settings.bankAccountNumber);
+      setCardMethodsEnabled(settings.cardMethodsEnabled);
+      setTransferMethodsEnabled(settings.transferMethodsEnabled);
+      setCashMethodsEnabled(settings.cashMethodsEnabled);
+      setSandboxSimulateDecline(settings.sandboxSimulateDecline);
+      setSandboxDeclineCode(settings.sandboxDeclineCode);
+      setSandboxDeclineMessage(settings.sandboxDeclineMessage);
+      setReceiptSuccessTitle(settings.receiptSuccessTitle);
+      setReceiptSuccessMessage(settings.receiptSuccessMessage);
+    }
+  }, [settings]);
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    setSettingsSuccessMsg('');
+    setSettingsErrorMsg('');
+    
+    const payload: SystemSettings = {
+      id: 'system',
+      whatsappNumber,
+      whatsappTemplate,
+      bankName,
+      bankAccountName,
+      bankAccountNumber,
+      cardMethodsEnabled,
+      transferMethodsEnabled,
+      cashMethodsEnabled,
+      sandboxSimulateDecline,
+      sandboxDeclineCode,
+      sandboxDeclineMessage,
+      receiptSuccessTitle,
+      receiptSuccessMessage
+    };
+
+    try {
+      await updateSettings(payload);
+      if (onUpdateSettings) {
+        onUpdateSettings(payload);
+      }
+      setSettingsSuccessMsg("System settings synchronized successfully in Cloud Firestore!");
+      setTimeout(() => setSettingsSuccessMsg(''), 5000);
+    } catch (err: any) {
+      console.error(err);
+      setSettingsErrorMsg(err.message || "Failed to update system configurations.");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   // Category mapping function corresponding to our hotel section Firestore records
   const getHotelCategory = (id: string): string => {
@@ -117,6 +206,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const [editingHotel, setEditingHotel] = useState<Hotel | null>(null);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [isCreatingRoom, setIsCreatingRoom] = useState<boolean>(false);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
 
   // File Upload state variables
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -401,6 +491,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     }
   };
 
+  const handleUpdateBookingFull = async (updated: Booking) => {
+    setActionLoading(`state-${updated.id}`);
+    try {
+      const response = await fetch('/api/admin/bookings/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          bookingId: updated.id,
+          status: updated.status,
+          paymentStatus: updated.paymentStatus,
+          paymentMethod: updated.paymentMethod,
+          guestName: updated.guestName,
+          guestEmail: updated.guestEmail,
+          checkIn: updated.checkIn,
+          checkOut: updated.checkOut,
+          roomCount: updated.roomCount,
+          totalPrice: updated.totalPrice
+        })
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update reservation details.');
+      }
+      showFeedback('success', `Reservation ${updated.id} updated successfully.`);
+      setEditingBooking(null);
+      await loadAllData();
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to update reservation.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   return (
     <div className="space-y-8 bg-white border border-[#E5E2DA] p-6 sm:p-8 rounded-3xl shadow-sm transition-all" id="admin-hub-main">
       
@@ -461,6 +585,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
           { id: 'sections', label: 'Manage Sections', icon: ImageIcon },
           { id: 'rooms', label: 'Manage Offerings & Suites', icon: Package },
           { id: 'bookings', label: 'Reservations Ledger', icon: CalendarDays },
+          { id: 'settings', label: 'System Settings', icon: SettingsIcon },
         ].map((tab) => {
           const Icon = tab.icon;
           return (
@@ -1034,7 +1159,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
 
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <label className="text-xs font-bold text-[#33332D] block mb-1.5">Price Per Night ($)</label>
+                          <label className="text-xs font-bold text-[#33332D] block mb-1.5">Price Per Night (₦)</label>
                           <input
                             type="number"
                             value={editingRoom.pricePerNight}
@@ -1488,7 +1613,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                             <h4 className="font-serif italic font-bold text-sm text-[#33332D] leading-tight">{room.name}</h4>
                             <p className="text-[10px] text-gray-500 line-clamp-2 max-w-xl">{room.description}</p>
                             <div className="flex flex-wrap gap-2 text-[10px] text-gray-400 font-medium">
-                              <span className="bg-gray-100 px-2 py-0.5 rounded-sm text-amber-700 font-bold">Price: ${room.pricePerNight} / night</span>
+                              <span className="bg-gray-100 px-2 py-0.5 rounded-sm text-amber-700 font-bold">Price: ₦{room.pricePerNight} / night</span>
                               <span className="bg-gray-100 px-2 py-0.5 rounded-sm">Cap: {room.capacity} guest(s)</span>
                               <span className="bg-gray-100 px-2 py-0.5 rounded-sm">Inventory limits: {room.totalInventory} slots</span>
                               <span className="bg-gray-100 px-2 py-0.5 rounded-sm font-bold text-[#5B6D5B]">{getRoomImages(room).length} photos/videos</span>
@@ -1524,12 +1649,171 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
           {/* TAB 4: RESERVATIONS LEDGER */}
           {activeTab === 'bookings' && (
             <div className="space-y-6 animate-fade-in font-sans">
-              <div className="p-4 border border-indigo-100 bg-indigo-50/20 rounded-2xl text-xs flex gap-2.5 text-indigo-800">
-                <CalendarDays className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>The reservations list below represents a live, reactive window into traveler bookings. Update states, confirm settlement billing, or cancel itineraries directly in Firestore.</span>
-              </div>
+              {editingBooking ? (
+                <div className="border border-[#E5E2DA] p-6 rounded-3xl space-y-6 bg-white">
+                  <div className="flex items-center justify-between border-b border-gray-150 pb-4">
+                    <h3 className="font-serif italic font-bold text-lg text-[#33332D]">
+                      Form: Edit Reservation Details ({editingBooking.id})
+                    </h3>
+                    <button
+                      onClick={() => setEditingBooking(null)}
+                      className="text-xs text-[#8E8E82] hover:text-[#33332D] flex items-center gap-1 cursor-pointer font-semibold"
+                    >
+                      <X className="w-4 h-4" /> Cancel Selection
+                    </button>
+                  </div>
 
-              {/* Ledger Table */}
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    handleUpdateBookingFull(editingBooking);
+                  }} className="space-y-4 text-xs font-sans">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-[#33332D] block mb-1.5">Guest Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={editingBooking.guestName || ''}
+                          onChange={(e) => setEditingBooking({ ...editingBooking, guestName: e.target.value })}
+                          className="w-full border border-[#E5E2DA] rounded-xl px-3.5 py-2.5 bg-[#F9F8F6] text-[#33332D]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-[#33332D] block mb-1.5">Guest Email</label>
+                        <input
+                          type="email"
+                          required
+                          value={editingBooking.guestEmail || ''}
+                          onChange={(e) => setEditingBooking({ ...editingBooking, guestEmail: e.target.value })}
+                          className="w-full border border-[#E5E2DA] rounded-xl px-3.5 py-2.5 bg-[#F9F8F6] text-[#33332D]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-[#33332D] block mb-1.5">Check-In Date</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="YYYY-MM-DD"
+                          value={editingBooking.checkIn}
+                          onChange={(e) => setEditingBooking({ ...editingBooking, checkIn: e.target.value })}
+                          className="w-full border border-[#E5E2DA] rounded-xl px-3.5 py-2.5 bg-[#F9F8F6] font-mono text-[#33332D]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-[#33332D] block mb-1.5">Check-Out Date</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="YYYY-MM-DD"
+                          value={editingBooking.checkOut}
+                          onChange={(e) => setEditingBooking({ ...editingBooking, checkOut: e.target.value })}
+                          className="w-full border border-[#E5E2DA] rounded-xl px-3.5 py-2.5 bg-[#F9F8F6] font-mono text-[#33332D]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-[#33332D] block mb-1.5">Room Count</label>
+                        <input
+                          type="number"
+                          required
+                          min={1}
+                          value={editingBooking.roomCount}
+                          onChange={(e) => setEditingBooking({ ...editingBooking, roomCount: parseInt(e.target.value) || 1 })}
+                          className="w-full border border-[#E5E2DA] rounded-xl px-3.5 py-2.5 bg-[#F9F8F6] font-bold text-[#33332D]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-[#33332D] block mb-1.5">Agreement Total Charge (₦)</label>
+                        <input
+                          type="number"
+                          required
+                          value={editingBooking.totalPrice}
+                          onChange={(e) => setEditingBooking({ ...editingBooking, totalPrice: parseInt(e.target.value) || 0 })}
+                          className="w-full border border-[#E5E2DA] rounded-xl px-3.5 py-2.5 bg-[#F9F8F6] font-bold text-amber-800 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-2">
+                      <div>
+                        <label className="text-xs font-bold text-[#33332D] block mb-1.5">Payment Method Preference</label>
+                        <select
+                          value={editingBooking.paymentMethod || 'card'}
+                          onChange={(e) => setEditingBooking({ ...editingBooking, paymentMethod: e.target.value as any })}
+                          className="w-full border border-[#E5E2DA] rounded-xl px-3.5 py-2.5 bg-[#F9F8F6] text-[#33332D] font-bold"
+                        >
+                          <option value="card">Secure Card Pay</option>
+                          <option value="bank_transfer">Sterling Bank Transfer</option>
+                          <option value="cash">Pay Cash on Arrival</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-[#33332D] block mb-1.5">Reservation Status</label>
+                        <select
+                          value={editingBooking.status}
+                          onChange={(e) => setEditingBooking({ ...editingBooking, status: e.target.value as any })}
+                          className="w-full border border-[#E5E2DA] rounded-xl px-3.5 py-2.5 bg-[#F9F8F6] text-[#33332D] font-bold"
+                        >
+                          <option value="pending">pending (Waiting)</option>
+                          <option value="confirmed">confirmed (Live)</option>
+                          <option value="cancelled">cancelled (Void)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-[#33332D] block mb-1.5">Verification Payment Status</label>
+                        <select
+                          value={editingBooking.paymentStatus}
+                          onChange={(e) => setEditingBooking({ ...editingBooking, paymentStatus: e.target.value as any })}
+                          className="w-full border border-[#E5E2DA] rounded-xl px-3.5 py-2.5 bg-[#F9F8F6] text-[#33332D] font-bold"
+                        >
+                          <option value="pending">pending</option>
+                          <option value="paid">paid (settled)</option>
+                          <option value="failed">failed</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-150">
+                      <button
+                        type="button"
+                        onClick={() => setEditingBooking(null)}
+                        className="py-2.5 px-5 border border-[#E5E2DA] bg-white text-neutral-500 rounded-full font-bold cursor-pointer hover:bg-gray-100 transition-colors"
+                      >
+                        Nevermind, Go Back
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={actionLoading === `state-${editingBooking.id}`}
+                        className="py-2.5 px-6 bg-[#5B6D5B] hover:bg-[#455245] text-white rounded-full font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs border-b-2 border-red-600"
+                      >
+                        {actionLoading === `state-${editingBooking.id}` ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                            <span>Saving Changes...</span>
+                          </>
+                        ) : (
+                          'Commit Reservation Overrides'
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              ) : (
+                <>
+                  <div className="p-4 border border-indigo-100 bg-indigo-50/20 rounded-2xl text-xs flex gap-2.5 text-indigo-800 animate-fade-in">
+                    <CalendarDays className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>The reservations list below represents a live, reactive window into traveler bookings. Update states, confirm settlement billing, or cancel itineraries directly in Firestore.</span>
+                  </div>
+
+                  {/* Ledger Table */}
               <div className="border border-[#E5E2DA] rounded-3xl overflow-hidden bg-white shadow-2xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
@@ -1566,16 +1850,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                               <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 block w-max">OUT: {book.checkOut}</span>
                             </td>
                             <td className="p-4 space-y-0.5">
-                              <span className="font-bold text-amber-800 block">${book.totalPrice}</span>
-                              <span className={`text-[9px] font-mono px-1 w-max rounded-sm block ${
-                                book.paymentStatus === 'paid' 
-                                  ? 'bg-emerald-100 text-emerald-800 font-bold' 
-                                  : book.paymentStatus === 'failed' 
-                                  ? 'bg-rose-100 text-rose-800' 
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}>
-                                {book.paymentStatus === 'paid' ? 'SETTLED' : book.paymentStatus.toUpperCase()}
-                              </span>
+                              <span className="font-bold text-amber-800 block">₦{book.totalPrice}</span>
+                              <div className="flex flex-col gap-1">
+                                <span className={`text-[9px] font-mono px-1.5 py-0.5 w-max rounded-sm block font-bold ${
+                                  book.paymentStatus === 'paid' 
+                                    ? 'bg-emerald-100 text-emerald-800' 
+                                    : book.paymentStatus === 'failed' 
+                                    ? 'bg-rose-100 text-rose-800' 
+                                    : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {book.paymentStatus === 'paid' ? 'SETTLED' : book.paymentStatus.toUpperCase()}
+                                </span>
+                                {book.paymentMethod && (
+                                  <span className="text-[8px] uppercase tracking-wider font-extrabold text-neutral-500 bg-neutral-100 px-1 py-0.5 rounded w-max block">
+                                    {book.paymentMethod.replace('_', ' ')}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="p-4">
                               <span className={`inline-flex px-2 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase ${
@@ -1590,6 +1881,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                             </td>
                             <td className="p-4">
                               <div className="flex gap-1.5 flex-wrap">
+                                <button
+                                  onClick={() => setEditingBooking(book)}
+                                  className="px-2 py-1 bg-amber-50 hover:bg-[#5B6D5B] text-amber-800 hover:text-white rounded-md text-[9px] font-bold tracking-wider uppercase cursor-pointer transition-colors"
+                                >
+                                  Edit Details
+                                </button>
+
                                 {book.status !== 'confirmed' && book.status !== 'cancelled' && (
                                   <button
                                     onClick={() => handleModifyBookingStatus(book.id, 'confirmed', 'paid')}
@@ -1631,6 +1929,311 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                   </table>
                 </div>
               </div>
+            </>
+          )}
+
+          {/* TAB 5: SYSTEM CONFIGURATION SETTINGS */}
+          {activeTab === 'settings' && (
+            <motion.div 
+              key="settings-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-8 animate-fade-in"
+            >
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 font-sans tracking-tight">System Configuration Settings</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Manage live gateway methods, direct bank properties, custom WhatsApp message templates, and sandboxes</p>
+                </div>
+              </div>
+
+              {/* Status banner messages */}
+              {settingsSuccessMsg && (
+                <div id="settings-success-alert" className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2 font-semibold">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{settingsSuccessMsg}</span>
+                </div>
+              )}
+              {settingsErrorMsg && (
+                <div id="settings-error-alert" className="p-4 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-center gap-2 font-semibold">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{settingsErrorMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveSettings} className="space-y-6">
+                
+                {/* Visual Settings Bento Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  
+                  {/* Block 1: Gateway Toggles */}
+                  <div className="border border-[#E5E2DA] p-6 rounded-3xl bg-[#F9F8F6] space-y-4">
+                    <h4 className="text-xs font-bold text-gray-900 uppercase tracking-widest font-serif italic border-b border-[#E5E2DA] pb-2 flex items-center gap-2">
+                      <SlidersHorizontal className="w-4 h-4 text-[#5B6D5B]" />
+                      Payment Method Handlers
+                    </h4>
+                    <p className="text-[11px] text-[#8E8E82] font-sans">Toggle payment preference paths dynamically. If any path is turned off, customers will not see it on their checkout screen.</p>
+                    
+                    <div className="space-y-3.5 pt-2">
+                      {/* CARD TOGGLE */}
+                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                        <div>
+                          <span className="text-xs font-bold text-gray-800 block">Credit/Debit Card Settlement</span>
+                          <span className="text-[10px] text-gray-450 block">Gateway direct instant credit clearance (e.g. Stripe/Paystack imitation)</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCardMethodsEnabled(!cardMethodsEnabled)}
+                          className="focus:outline-hidden cursor-pointer"
+                        >
+                          {cardMethodsEnabled ? <ToggleRight className="w-10 h-10 text-emerald-600" /> : <ToggleLeft className="w-10 h-10 text-gray-300" />}
+                        </button>
+                      </div>
+
+                      {/* TRANSFER TOGGLE */}
+                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                        <div>
+                          <span className="text-xs font-bold text-gray-800 block">Direct Bank transfer manual route</span>
+                          <span className="text-[10px] text-gray-450 block">Permits customers to reserve units and complete transfer to designated account</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setTransferMethodsEnabled(!transferMethodsEnabled)}
+                          className="focus:outline-hidden cursor-pointer"
+                        >
+                          {transferMethodsEnabled ? <ToggleRight className="w-10 h-10 text-emerald-600" /> : <ToggleLeft className="w-10 h-10 text-gray-300" />}
+                        </button>
+                      </div>
+
+                      {/* CASH ROUTE TOGGLE */}
+                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                        <div>
+                          <span className="text-xs font-bold text-gray-800 block">Pay Cash on Arrival</span>
+                          <span className="text-[10px] text-gray-450 block">Holds reservation and handles currency settlement at resort lobby desk</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCashMethodsEnabled(!cashMethodsEnabled)}
+                          className="focus:outline-hidden cursor-pointer"
+                        >
+                          {cashMethodsEnabled ? <ToggleRight className="w-10 h-10 text-emerald-600" /> : <ToggleLeft className="w-10 h-10 text-gray-300" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Block 2: Beneficiary Direct Bank Properties */}
+                  <div className="border border-[#E5E2DA] p-6 rounded-3xl bg-[#F9F8F6] space-y-4">
+                    <h4 className="text-xs font-bold text-gray-900 uppercase tracking-widest font-serif italic border-b border-[#E5E2DA] pb-2 flex items-center gap-2">
+                       <Landmark className="w-4 h-4 text-[#5B6D5B]" />
+                      Direct Bank Transfer Properties
+                    </h4>
+                    
+                    <div className="space-y-3.5">
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-[#8E8E82] tracking-wider mb-1 font-sans">Beneficiary Bank Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={bankName}
+                          onChange={(e) => setBankName(e.target.value)}
+                          placeholder="e.g. Guarantee Trust Bank"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs text-black bg-white focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-[#8E8E82] tracking-wider mb-1 font-sans">Account Beneficiary Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={bankAccountName}
+                          onChange={(e) => setBankAccountName(e.target.value)}
+                          placeholder="e.g. DanVilla Resorts International"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs text-black bg-white focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-[#8E8E82] tracking-wider mb-1 font-sans">Beneficiary Account Number</label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={10}
+                          value={bankAccountNumber}
+                          onChange={(e) => setBankAccountNumber(e.target.value.replace(/\D/g, ''))}
+                          placeholder="e.g. 1024589364"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-mono text-black bg-white focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Block 3: corporate WhatsApp configuration */}
+                  <div className="border border-[#E5E2DA] p-6 rounded-3xl bg-[#F9F8F6] space-y-4 lg:col-span-2">
+                    <h4 className="text-xs font-bold text-gray-900 uppercase tracking-widest font-serif italic border-b border-[#E5E2DA] pb-2 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-[#5B6D5B]" />
+                      Priority Corporate WhatsApp Forward Link Configuration
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="md:col-span-1 space-y-3">
+                        <div>
+                          <label className="block text-[10px] uppercase font-bold text-[#8E8E82] tracking-wider mb-1 font-sans">WhatsApp Telephone Number</label>
+                          <input
+                            type="text"
+                            required
+                            value={whatsappNumber}
+                            onChange={(e) => setWhatsappNumber(e.target.value.replace(/\D/g, ''))}
+                            placeholder="e.g. 2348123456789"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-mono text-black bg-white focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B]"
+                          />
+                          <p className="text-[9px] text-gray-400 mt-1">Provide dial extension code prefix (no plus or spaces, eg. 2348123456789).</p>
+                        </div>
+
+                        <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 space-y-1.5 text-[10px] text-blue-800 font-sans leading-relaxed">
+                          <strong>💡 Template Placeholders Guide:</strong>
+                          <p>You can inject standard parameters inside the template to format guest receipts dynamically:</p>
+                          <ul className="list-disc pl-3 text-[9px] space-y-0.5 text-blue-700">
+                            <li><code className="bg-white px-0.5 rounded text-red-600 font-bold">{'{id}'}</code> - Unique reservation code</li>
+                            <li><code className="bg-white px-0.5 rounded text-red-600 font-bold">{'{guestName}'}</code> - Main lead traveler name</li>
+                            <li><code className="bg-white px-0.5 rounded text-red-600 font-bold">{'{guestEmail}'}</code> - Email record</li>
+                            <li><code className="bg-white px-0.5 rounded text-red-600 font-bold">{'{hotelName}'}</code> - Wing section</li>
+                            <li><code className="bg-white px-0.5 rounded text-red-600 font-bold">{'{roomName}'}</code> - Selected Suite offering</li>
+                            <li><code className="bg-white px-0.5 rounded text-red-600 font-bold">{'{checkIn}'}</code> to <code className="bg-white px-0.5 rounded text-red-600 font-bold">{'{checkOut}'}</code> - Stay limits</li>
+                            <li><code className="bg-white px-0.5 rounded text-red-600 font-bold">{'{roomCount}'}</code> - Units Reserved quantity</li>
+                            <li><code className="bg-white px-0.5 rounded text-red-605 font-bold">{'{totalPrice}'}</code> - Total cost (₦)</li>
+                            <li><code className="bg-white px-0.5 rounded text-red-606 font-bold">{'{paymentMethod}'}</code> - Chosen payment mode</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] uppercase font-bold text-[#8E8E82] tracking-wider mb-1 font-sans">Receipt forward text message Template</label>
+                        <textarea
+                          required
+                          rows={11}
+                          value={whatsappTemplate}
+                          onChange={(e) => setWhatsappTemplate(e.target.value)}
+                          placeholder="Design template text message here..."
+                          className="w-full p-3 font-mono border border-gray-200 rounded-xl text-xs text-black bg-white focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B] leading-relaxed"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Block 4: Custom Success Receipts Banner Styling */}
+                  <div className="border border-[#E5E2DA] p-6 rounded-3xl bg-[#F9F8F6] space-y-4">
+                    <h4 className="text-xs font-bold text-gray-900 uppercase tracking-widest font-serif italic border-b border-[#E5E2DA] pb-2 flex items-center gap-2">
+                      <ShieldAlert className="w-4 h-4 text-[#5B6D5B]" />
+                      Payment Success Receipts Banner Styling
+                    </h4>
+                    
+                    <div className="space-y-3.5">
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-[#8E8E82] tracking-wider mb-1 font-sans">Payment Approved Screen Title</label>
+                        <input
+                          type="text"
+                          required
+                          value={receiptSuccessTitle}
+                          onChange={(e) => setReceiptSuccessTitle(e.target.value)}
+                          placeholder="e.g. Lodging secured!"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs text-black bg-white focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold text-[#8E8E82] tracking-wider mb-1 font-sans">Screen Description / Success Text Receipt</label>
+                        <textarea
+                          required
+                          rows={4}
+                          value={receiptSuccessMessage}
+                          onChange={(e) => setReceiptSuccessMessage(e.target.value)}
+                          placeholder="Write dynamic cleared narrative text description here..."
+                          className="w-full p-3 border border-gray-200 rounded-lg text-xs text-black bg-white focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B] leading-relaxed"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Block 5: simulated checkout Sandbox properties */}
+                  <div className="border border-[#E5E2DA] p-6 rounded-3xl bg-[#F9F8F6] space-y-4">
+                    <h4 className="text-xs font-bold text-gray-900 uppercase tracking-widest font-serif italic border-b border-[#E5E2DA] pb-2 flex items-center gap-2">
+                      <Sliders className="w-4 h-4 text-[#5B6D5B]" />
+                      Simulated Gateway Checkout Sandbox Options
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      {/* SIMULATE FORCE DECLINE */}
+                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                        <div>
+                          <span className="text-xs font-bold text-gray-800 block">Force decline card simulation</span>
+                          <span className="text-[10px] text-gray-400 block">Forces gateway decline check regardless of card layout input</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSandboxSimulateDecline(!sandboxSimulateDecline)}
+                          className="focus:outline-hidden cursor-pointer"
+                        >
+                          {sandboxSimulateDecline ? <ToggleRight className="w-10 h-10 text-emerald-600" /> : <ToggleLeft className="w-10 h-10 text-gray-300" />}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-1">
+                          <label className="block text-[10px] uppercase font-bold text-[#8E8E82] tracking-wider mb-1 font-sans">Decline card Suffix</label>
+                          <input
+                            type="text"
+                            required
+                            maxLength={4}
+                            value={sandboxDeclineCode}
+                            onChange={(e) => setSandboxDeclineCode(e.target.value.replace(/\D/g, ''))}
+                            placeholder="e.g. 4444"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-mono text-black bg-white focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B]"
+                          />
+                          <p className="text-[9px] text-gray-400 mt-1">Cards ending of this suffix will trigger simulated gate check decline.</p>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-[10px] uppercase font-bold text-[#8E8E82] tracking-wider mb-1 font-sans">Simulated decline error explanation</label>
+                          <input
+                            type="text"
+                            required
+                            value={sandboxDeclineMessage}
+                            onChange={(e) => setSandboxDeclineMessage(e.target.value)}
+                            placeholder="Declined error message text..."
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs text-black bg-white focus:outline-hidden focus:ring-1 focus:ring-[#5B6D5B]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Submit button bar */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-105">
+                  <button
+                    type="submit"
+                    disabled={savingSettings}
+                    className="px-6 py-3 bg-[#5B6D5B] hover:bg-[#4A594A] text-white rounded-full text-xs font-bold uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {savingSettings ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Synchronizing settings...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Save and Deploy Settings</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
             </div>
           )}
         </div>

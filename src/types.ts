@@ -38,6 +38,7 @@ export interface Booking {
   status: 'pending' | 'confirmed' | 'cancelled';
   paymentStatus: 'pending' | 'paid' | 'failed';
   paymentIntentId?: string;
+  paymentMethod?: 'card' | 'bank_transfer' | 'cash';
   guestName: string;
   guestEmail: string;
   createdAt: string; // ISO string
@@ -56,3 +57,21 @@ export interface RoomAvailabilityResponse {
 export interface APIErrorResponse {
   error: string;
 }
+
+export interface SystemSettings {
+  id: string;
+  whatsappNumber: string;
+  whatsappTemplate: string;
+  bankName: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  cardMethodsEnabled: boolean;
+  transferMethodsEnabled: boolean;
+  cashMethodsEnabled: boolean;
+  sandboxSimulateDecline: boolean;
+  sandboxDeclineCode: string;
+  sandboxDeclineMessage: string;
+  receiptSuccessTitle: string;
+  receiptSuccessMessage: string;
+}
+

@@ -511,12 +511,12 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
                       <div className="flex flex-row sm:flex-col justify-between items-center sm:items-start w-full sm:w-auto">
                         <div>
                           <div className="flex items-baseline gap-1.5">
-                            <span className="text-xl font-bold text-[#33332D] font-serif italic">${room.pricePerNight}</span>
+                            <span className="text-xl font-bold text-[#33332D] font-serif italic">₦{room.pricePerNight}</span>
                             <span className="text-[#8E8E82] text-xs">/ night</span>
                           </div>
                           {stayLength > 0 && (
                             <p className="text-[10px] text-[#8E8E82] font-sans mt-0.5 hidden sm:block">
-                              Subtotal: ${room.pricePerNight} * {stayLength} nights {roomCount > 1 ? `* ${roomCount} rooms` : ''}
+                              Subtotal: ₦{room.pricePerNight} * {stayLength} nights {roomCount > 1 ? `* ${roomCount} rooms` : ''}
                             </p>
                           )}
                         </div>
@@ -525,7 +525,7 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
                         {stayLength > 0 && !isFullyBooked && !inventoryShort && (
                           <div className="text-right sm:hidden">
                             <span className="text-[9px] text-[#8E8E82] uppercase tracking-widest block font-bold leading-none mb-0.5">Total Stay</span>
-                            <span className="text-sm font-bold font-serif italic text-red-600">${calculatedTotalPrice}</span>
+                            <span className="text-sm font-bold font-serif italic text-red-600">₦{calculatedTotalPrice}</span>
                           </div>
                         )}
                       </div>
@@ -534,7 +534,7 @@ export const RoomSelector: React.FC<RoomSelectorProps> = ({ hotel, onBookRoom, o
                         {stayLength > 0 && !isFullyBooked && !inventoryShort && (
                           <div className="text-right hidden sm:block">
                             <span className="text-[9px] text-[#8E8E82] uppercase tracking-widest block font-bold font-sans">Total Stay</span>
-                            <span className="text-base font-bold font-serif italic text-red-600">${calculatedTotalPrice}</span>
+                            <span className="text-base font-bold font-serif italic text-red-600">₦{calculatedTotalPrice}</span>
                           </div>
                         )}
 

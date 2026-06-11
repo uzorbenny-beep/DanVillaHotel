@@ -1,4 +1,4 @@
-import { Hotel, Room, Booking, RoomAvailabilityResponse } from '../types';
+import { Hotel, Room, Booking, RoomAvailabilityResponse, SystemSettings } from '../types';
 
 /**
  * Client-side integration interface talking to our custom Node/Express backend APIs
@@ -62,9 +62,10 @@ export async function createBooking(payload: CreateBookingPayload): Promise<Book
 
 interface ProcessPaymentPayload {
   bookingId: string;
-  cardNumber: string;
-  cardExpiry: string;
-  cardCvc: string;
+  paymentMethod: 'card' | 'bank_transfer' | 'cash';
+  cardNumber?: string;
+  cardExpiry?: string;
+  cardCvc?: string;
 }
 
 export async function processPayment(payload: ProcessPaymentPayload): Promise<{
@@ -96,5 +97,26 @@ export async function cancelBooking(bookingId: string, userId: string): Promise<
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to authorize cancellation action.');
+  }
+}
+
+export async function fetchSettings(): Promise<SystemSettings> {
+  const response = await fetch('/api/settings');
+  if (!response.ok) {
+    throw new Error('Failed to retrieve system settings configurations.');
+  }
+  return response.json();
+}
+
+export async function updateSettings(settings: SystemSettings): Promise<void> {
+  const response = await fetch('/api/settings/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings)
+  });
+  
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to save system settings modifications.');
   }
 }
